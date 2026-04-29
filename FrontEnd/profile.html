@@ -1,0 +1,67 @@
+
+
+
+                            
+
+
+
+
+
+<!-- profile.html -->
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil Saya - Toko Sembako</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-inner">
+            <a href="index.html" class="back-btn" style="margin:0; font-size:18px;">← Kembali</a>
+            <div class="logo">LOGO</div>
+            <div class="header-icons">
+                <a href="keranjang.html" class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg></a>
+            </div>
+        </div>
+    </header>
+
+    <main class="profile-page">
+        <div class="profile-header">
+            <img src="https://i.pravatar.cc/150" alt="Avatar" class="avatar">
+            <div>
+                <div class="profile-name">Moreno</div>
+                <div class="profile-email">moreno@gmail.com</div>
+            </div>
+        </div>
+        <div class="profile-menu">
+            <a href="#" class="profile-item">Pesanan Saya <span class="arrow">→</span></a>
+            <a href="#" class="profile-item">Alamat Pengiriman <span class="arrow">→</span></a>
+            <a href="#" class="profile-item">Pengaturan Akun <span class="arrow">→</span></a>
+            <a href="#" class="profile-item" onclick="openModal('csModal'); return false;">Bantuan & Customer Service <span class="arrow">→</span></a>
+        </div>
+    </main>
+
+    <div class="modal" id="csModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('csModal')">&times;</span>
+            <h2>Customer Service</h2>
+            <div class="cs-info">
+                <p>📧 moreno@gmail.com</p>
+                <p>📞 +62 812-7891-6777</p>
+                <p>🕒 Senin - Minggu, 08:00 - 20:00</p>
+            </div>
+            <button class="btn-primary" onclick="closeModal('csModal')">Tutup</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
+
+
+
+              
+ </body>
+</html>
+                    
