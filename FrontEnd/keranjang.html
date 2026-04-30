@@ -1,32 +1,69 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Keranjang - Toko Sembako</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
     <header class="header">
-        <div class="header-inner">
-            <a href="index.html" class="back-btn" style="margin:0; font-size:18px;">← Kembali</a>
-            <div class="logo">LOGO</div>
-            <div class="header-icons">
-                <a href="profile.html" class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></a>
-                <a href="keranjang.html" class="icon-btn" style="color:var(--primary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg></a>
-            </div>
+      <div class="header-inner">
+        <a href="index.html" class="back-btn" style="margin: 0; font-size: 18px"
+          >← Kembali</a
+        >
+        <div class="logo">LOGO</div>
+        <div class="header-icons">
+          <a href="profile.html" class="icon-btn"
+            ><svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle></svg
+          ></a>
+          <a
+            href="keranjang.html"
+            class="icon-btn"
+            style="color: var(--primary)"
+            ><svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="9" cy="21" r="1"></circle>
+              <circle cx="20" cy="21" r="1"></circle>
+              <path
+                d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"
+              ></path></svg
+          ></a>
         </div>
+      </div>
     </header>
 
     <main class="cart-page">
-        <h1 class="page-title">Keranjang Belanja</h1>
-        <div id="cartList"></div>
-        <div id="cartSummary" class="cart-total">
-            <div class="cart-row"><span>Total Barang</span><span id="totalItems">0</span></div>
-            <div class="cart-row total"><span>Total Harga</span><span id="totalPrice">Rp 0</span></div>
-            <button class="btn-primary" style="margin-top:20px;" onclick="alert('Checkout berhasil!')">Checkout Sekarang</button>
+      <h1 class="page-title">Keranjang Belanja</h1>
+      <div id="cartList"></div>
+      <div id="cartSummary" class="cart-total">
+        <div class="cart-row">
+          <span>Total Barang</span><span id="totalItems">0</span>
         </div>
+        <div class="cart-row total">
+          <span>Total Harga</span><span id="totalPrice">Rp 0</span>
+        </div>
+        <button
+          class="btn-primary"
+          style="margin-top: 20px"
+          onclick="alert('Checkout berhasil!')"
+        >
+          Checkout Sekarang
+        </button>
+      </div>
     </main>
     <script src="script.js"></script>
-</body>
+  </body>
 </html>

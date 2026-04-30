@@ -1,33 +1,43 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Detail Produk - Toko Sembako</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
     <header class="header">
         <div class="header-inner">
-            <a href="index.html" class="back-btn" style="margin:0; font-size:18px;">← Kembali</a>
+            <a href="index.html" class="back-btn" style="margin: 0; font-size: 18px">← Kembali</a>
             <div class="logo">LOGO</div>
             <div class="header-icons">
-                <a href="keranjang.html" class="icon-btn" id="cartLink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><span id="cartBadge" class="badge hidden">0</span></a>
+                <a href="keranjang.html" class="icon-btn" id="cartLink"><svg viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="9" cy="21" r="1"></circle>
+                        <circle cx="20" cy="21" r="1"></circle>
+                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                    </svg><span id="cartBadge" class="badge hidden">0</span></a>
             </div>
         </div>
     </header>
 
     <main class="detail-page">
         <div id="detailContainer" class="detail-container">
-            <img id="detailImg" src="" alt="Produk" class="detail-img">
+            <img id="detailImg" src="" alt="Produk" class="detail-img" />
             <div>
                 <h1 id="detailTitle" class="detail-title"></h1>
                 <p id="detailPrice" class="detail-price"></p>
                 <p id="detailDesc" class="detail-desc"></p>
-                <button id="addCartBtn" class="btn-primary" style="font-size:16px; padding:14px;">Masukkan Keranjang</button>
+                <button id="addCartBtn" class="btn-primary" style="font-size: 16px; padding: 14px">
+                    Masukkan Keranjang
+                </button>
             </div>
         </div>
     </main>
     <script src="script.js"></script>
 </body>
+
 </html>
