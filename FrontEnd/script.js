@@ -116,7 +116,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (isProfile) {
-        // Profile page logic handled statically in HTML
     }
 });
 
