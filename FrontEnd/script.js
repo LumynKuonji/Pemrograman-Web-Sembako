@@ -22,12 +22,31 @@ const products = [
     { id: 21, nama: "Pepsodent Action 123 180 GR", harga: 27000, kategori: "Kebutuhan Mandi", img: "https://i.pinimg.com/1200x/34/a8/4d/34a84dac30633b6cff4085bd3f778223.jpg", desc: "Sikat gigi 3 arah bersih maksimal." },
     { id: 22, nama: "SO GOOD TELUR OMEGA3 10S", harga: 34000, kategori: "Produk Segar", img: "https://down-id.img.susercontent.com/file/id-11134275-7rbk2-ma7ysj9nanj5a9@resize_w900_nl.webp", desc: "Telur kaya omega untuk tumbuh kembang." },
     { id: 23, nama: "Smoked Beef Metzger 100gr", harga: 23000, kategori: "Produk Segar", img: "https://encrypted-tbn1.gstatic.com/shopping?q=tbn:ANd9GcSLxvY__qk9kjbgXOHQ5e2CwtDzMZqPDASukce-bu22olpginNVvA1ZOTdOpE78BwC1X7vzTX0wBeq8esRfG0ZYQ-A1xpikOi_-crX6_c7ZSUtt4h0yJAppv5A", desc: "Daging sapi asap halal siap saji." },
-    { id: 24, nama: "Telur 1 Kg", harga: 34000, kategori: "Produk Segar", img: "https://via.placeholder.com/150", desc: "Telur ayam segar pilihan per kilogram." }
+    { id: 24, nama: "Snack Buah Strawberry Kering Freeze Dried 1 Kg", harga: 66000, kategori: "Snack", img: "https://i.pinimg.com/1200x/35/31/ee/3531ee7dab3c6f86c5be2d1667e3d578.jpg", desc: "Snack Buah Strawberry Kering Freeze Dried sehat tanpa pengawet pewarna rendah kalori cemilan diet." }
 ];
 
 const categories = ["Semua", "Bahan Pokok", "Makanan Instan", "Bumbu Dapur", "Minuman", "Snack", "Kebutuhan Mandi", "Kebutuhan Cuci", "Produk Segar"];
 let currentCategory = "Semua";
 let cart = JSON.parse(localStorage.getItem("sembako_cart")) || [];
+let orders = JSON.parse(localStorage.getItem("sembako_orders")) || [];
+
+// ==================== ALAMAT PENGIRIMAN ====================
+let address = JSON.parse(localStorage.getItem("sembako_address")) || {
+    alamatLengkap: "Jl. Raya Kebon Jeruk No. 45",
+    kecamatan: "Kebon Jeruk",
+    kota: "Jakarta Barat",
+    kodePos: "11530",
+    catatan: "Rumah warna hijau, depan ada pohon mangga"
+};
+
+// ==================== USER PROFILE ====================
+let userProfile = JSON.parse(localStorage.getItem("sembako_user")) || {
+    nama: "Moreno",
+    email: "moreno@gmail.com",
+    telepon: "+62 812-7891-6777",
+    foto: "https://i.pravatar.cc/150?img=68",
+    password: "123456"
+};
 
 function formatRupiah(angka) {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
@@ -46,6 +65,19 @@ function saveCart() {
     updateCartBadge();
 }
 
+function saveOrders() {
+    localStorage.setItem("sembako_orders", JSON.stringify(orders));
+}
+
+function saveAddress() {
+    localStorage.setItem("sembako_address", JSON.stringify(address));
+}
+
+function saveUserProfile() {
+    localStorage.setItem("sembako_user", JSON.stringify(userProfile));
+}
+
+// ==================== RENDER & FILTER ====================
 function renderCategories() {
     const container = document.getElementById("categoryList");
     if (!container) return;
@@ -75,80 +107,17 @@ function renderProducts(list) {
 function filterProduk(kategori) {
     currentCategory = kategori === "Semua" ? "Semua" : kategori;
     renderCategories();
-    
     const searchVal = document.getElementById("searchInput")?.value.toLowerCase() || "";
     let filtered = products;
-    
-    if (currentCategory !== "Semua") {
-        filtered = filtered.filter(p => p.kategori.includes(currentCategory));
-    }
-    if (searchVal) {
-        filtered = filtered.filter(p => p.nama.toLowerCase().includes(searchVal));
-    }
-    
+    if (currentCategory !== "Semua") filtered = filtered.filter(p => p.kategori.includes(currentCategory));
+    if (searchVal) filtered = filtered.filter(p => p.nama.toLowerCase().includes(searchVal));
     renderProducts(filtered);
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    const isIndex = window.location.pathname.includes("index.html") || window.location.pathname === "/";
-    const isCart = window.location.pathname.includes("keranjang.html");
-    const isDetail = window.location.pathname.includes("detailproduk.html");
-    const isProfile = window.location.pathname.includes("profile.html");
-
-    if (isIndex) {
-        updateCartBadge();
-        renderCategories();
-        renderProducts(products);
-        
-        document.getElementById("searchInput")?.addEventListener("input", () => filterProduk(currentCategory));
-        
-        document.querySelector(".search-box input")?.addEventListener("keypress", (e) => {
-            if (e.key === "Enter") filterProduk(currentCategory);
-        });
-    }
-
-    if (isCart) {
-        renderCartPage();
-    }
-
-    if (isDetail) {
-        renderDetailPage();
-    }
-
-    if (isProfile) {
-    }
-});
-
-function toggleSidebar() {
-    document.getElementById("sidebar")?.classList.toggle("active");
-}
-
-function openModal(id) {
-    document.getElementById(id).style.display = "flex";
-}
-function closeModal(id) {
-    document.getElementById(id).style.display = "none";
-}
-
-function goDetail(id) {
-    window.location.href = `detailproduk.html?id=${id}`;
-}
-
-function addToCart(id) {
-    const product = products.find(p => p.id === id);
-    const existing = cart.find(item => item.id === id);
-    if (existing) {
-        existing.qty += 1;
-    } else {
-        cart.push({ id: product.id, nama: product.nama, harga: product.harga, img: product.img, qty: 1 });
-    }
-    saveCart();
-    alert(`${product.nama} ditambahkan ke keranjang!`);
 }
 
 function renderCartPage() {
     const container = document.getElementById("cartList");
     if (!container) return;
+
     if (cart.length === 0) {
         container.innerHTML = `<div class="empty-msg">Keranjang masih kosong.</div>`;
         document.getElementById("cartSummary")?.classList.add("hidden");
@@ -156,56 +125,495 @@ function renderCartPage() {
     }
 
     container.innerHTML = cart.map(item => `
-        <div class="cart-item">
-            <img src="${item.img}" alt="${item.nama}">
-            <div class="cart-info">
-                <div class="cart-title">${item.nama}</div>
-                <div class="cart-price">${formatRupiah(item.harga)}</div>
-                <div class="cart-controls">
-                    <button class="qty-btn" onclick="updateQty(${item.id}, -1)">-</button>
-                    <span>${item.qty}</span>
+        <div style="background: white; padding: 16px; border-radius: 12px; box-shadow: var(--shadow); display: flex; gap: 16px;">
+            <img src="${item.img}" alt="${item.nama}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;">
+            <div style="flex: 1;">
+                <div style="font-weight: 600;">${item.nama}</div>
+                <div style="color: var(--primary-dark); font-weight: 700;">${formatRupiah(item.harga)}</div>
+                
+                <div style="display: flex; align-items: center; gap: 12px; margin-top: 12px;">
+                    <button class="qty-btn" onclick="updateQty(${item.id}, -1)">–</button>
+                    <span style="font-weight: 600; min-width: 30px; text-align: center;">${item.qty}</span>
                     <button class="qty-btn" onclick="updateQty(${item.id}, 1)">+</button>
-                    <button class="qty-btn" style="background:#fee2e2; color:#ef4444; border-color:#fca5a5; margin-left:auto;" onclick="removeItem(${item.id})">Hapus</button>
+                    
+                    <button onclick="removeItem(${item.id})" 
+                            style="margin-left: auto; color: #ef4444; font-weight: 600; background: none; border: none;">
+                        Hapus
+                    </button>
                 </div>
             </div>
         </div>
     `).join('');
-    
+
     const total = cart.reduce((acc, item) => acc + (item.harga * item.qty), 0);
     document.getElementById("totalPrice").innerText = formatRupiah(total);
     document.getElementById("totalItems").innerText = cart.reduce((acc, i) => acc + i.qty, 0);
-}
-
-function updateQty(id, change) {
-    const item = cart.find(i => i.id === id);
-    if (item) {
-        item.qty += change;
-        if (item.qty <= 0) cart = cart.filter(i => i.id !== id);
-        saveCart();
-        renderCartPage();
-    }
-}
-
-function removeItem(id) {
-    cart = cart.filter(i => i.id !== id);
-    saveCart();
-    renderCartPage();
+    document.getElementById("cartSummary").classList.remove("hidden");
 }
 
 function renderDetailPage() {
     const params = new URLSearchParams(window.location.search);
     const id = parseInt(params.get("id"));
-    const product = products.find(p => p.id === id);
     
-    if (!product) {
-        document.getElementById("detailContainer").innerHTML = `<div class="empty-msg">Produk tidak ditemukan.</div>`;
+    const container = document.getElementById("detailContainer");
+    if (!container) return;
+
+    if (!id) {
+        container.innerHTML = `<div class="empty-msg">ID produk tidak ditemukan.</div>`;
         return;
     }
 
-    document.getElementById("detailImg").src = product.img;
-    document.getElementById("detailTitle").innerText = product.nama;
-    document.getElementById("detailPrice").innerText = formatRupiah(product.harga);
-    document.getElementById("detailDesc").innerText = product.desc;
-    document.getElementById("addCartBtn").onclick = () => addToCart(product.id);
+    const product = products.find(p => p.id === id);
+    
+    if (!product) {
+        container.innerHTML = `<div class="empty-msg">Produk tidak ditemukan.</div>`;
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="detail-grid">
+            <div class="detail-image">
+                <img src="${product.img}" alt="${product.nama}">
+            </div>
+            
+            <div class="detail-info">
+                <h1 class="detail-title">${product.nama}</h1>
+                <p class="detail-price">${formatRupiah(product.harga)}</p>
+                <p class="detail-desc">${product.desc}</p>
+                
+                <button class="add-to-cart-btn" onclick="addToCart(${product.id})">
+                    🛒 Masukkan Keranjang
+                </button>
+            </div>
+        </div>
+    `;
 }
 
+document.addEventListener("DOMContentLoaded", () => {
+    const isIndex = window.location.pathname.includes("index.html") || window.location.pathname === "/";
+    const isCart = window.location.pathname.includes("keranjang.html");
+    const isDetail = window.location.pathname.includes("detailproduk.html");
+    const isProfile = window.location.pathname.includes("profile.html");
+    const isRiwayat = window.location.pathname.includes("riwayat.html");
+
+    if (isIndex) {
+        updateCartBadge();
+        renderCategories();
+        renderProducts(products);
+        document.getElementById("searchInput")?.addEventListener("input", () => filterProduk(currentCategory));
+    }
+
+    if (isCart) renderCartPage();
+    if (isDetail) renderDetailPage();
+    if (isDetail) updateCartBadge(); 
+    if (isRiwayat) renderOrderHistory();
+    if (isProfile) {
+        renderAddressDisplay();
+        renderUserProfile();
+    }
+});
+
+// ==================== FUNGSI KERANJANG ====================
+
+function updateQty(id, change) {
+    const item = cart.find(item => item.id === id);
+    if (!item) return;
+
+    item.qty += change;
+
+    // Jika qty jadi 0 atau kurang, hapus otomatis
+    if (item.qty <= 0) {
+        removeItem(id);
+        return;
+    }
+
+    saveCart();
+    renderCartPage();   // refresh halaman keranjang
+}
+
+function removeItem(id) {
+    if (confirm("Hapus barang ini dari keranjang?")) {
+        cart = cart.filter(item => item.id !== id);
+        saveCart();
+        renderCartPage();
+    }
+}
+
+// Fungsi Checkout sudah ada, tapi pastikan tombolnya memanggil fungsi yang benar
+function checkout() {
+    if (cart.length === 0) return alert("Keranjang masih kosong!");
+
+    const total = cart.reduce((acc, item) => acc + (item.harga * item.qty), 0);
+    
+    const newOrder = {
+        id: "ORD-" + Date.now().toString().slice(-8),
+        tanggal: new Date().toLocaleDateString('id-ID', { 
+            day: 'numeric', 
+            month: 'long', 
+            year: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        }),
+        items: [...cart],
+        total: total,
+        status: "Sedang Diproses"
+    };
+
+    orders.unshift(newOrder);
+    saveOrders();
+    cart = [];
+    saveCart();
+    
+    alert(`✅ Pesanan ${newOrder.id} berhasil dibuat!`);
+    window.location.href = 'riwayat.html';
+}
+
+// ==================== CART & CHECKOUT ====================
+function goDetail(id) { window.location.href = `detailproduk.html?id=${id}`; }
+
+function addToCart(id) {
+    const product = products.find(p => p.id === id);
+    const existing = cart.find(item => item.id === id);
+    if (existing) existing.qty += 1;
+    else cart.push({ id: product.id, nama: product.nama, harga: product.harga, img: product.img, qty: 1 });
+    saveCart();
+    alert(`${product.nama} ditambahkan ke keranjang!`);
+}
+
+function checkout() {
+    if (cart.length === 0) return alert("Keranjang masih kosong!");
+    const total = cart.reduce((acc, item) => acc + (item.harga * item.qty), 0);
+    
+    const newOrder = {
+        id: "ORD-" + Date.now().toString().slice(-8),
+        tanggal: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        items: [...cart],
+        total: total,
+        status: "Sedang Diproses"
+    };
+
+    orders.unshift(newOrder);
+    saveOrders();
+    cart = [];
+    saveCart();
+    alert(`✅ Pesanan ${newOrder.id} berhasil dibuat!`);
+    window.location.href = 'riwayat.html';
+}
+
+// ==================== RIWAYAT PESANAN ====================
+function renderOrderHistory() {
+    const container = document.getElementById("orderList");
+    if (!container) return;
+
+    if (orders.length === 0) {
+        container.innerHTML = `
+            <div class="empty-msg">
+                <p>Belum ada riwayat pesanan.</p>
+                <button onclick="window.location.href='index.html'" class="btn-primary" style="margin-top: 16px;">
+                    Belanja Sekarang
+                </button>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = orders.map(order => {
+        const statusClass = order.status.toLowerCase().replace(/\s/g, '-');
+        
+        return `
+            <div class="order-card" onclick="showOrderDetail('${order.id}')">
+                <div class="order-header">
+                    <div>
+                        <strong>${order.id}</strong><br>
+                        <small>${order.tanggal}</small>
+                    </div>
+                    <span class="status ${statusClass}">${order.status}</span>
+                </div>
+                
+                <div class="order-items">
+                    ${order.items.slice(0, 2).map(item => `
+                        <div class="order-item-small">
+                            <span>${item.nama} × ${item.qty}</span>
+                            <span>${formatRupiah(item.harga * item.qty)}</span>
+                        </div>
+                    `).join('')}
+                    ${order.items.length > 2 ? `<small>+${order.items.length - 2} barang lainnya</small>` : ''}
+                </div>
+                
+                <div class="order-total">
+                    Total: <strong>${formatRupiah(order.total)}</strong>
+                </div>
+                
+                <button onclick="event.stopImmediatePropagation(); buyAgain('${order.id}');" class="btn-buy-again">
+                    🛒 Beli Lagi
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+// ==================== ALAMAT PENGIRIMAN ====================
+function renderAddressDisplay() {
+    const container = document.getElementById("currentAddress");
+    if (!container) return;
+    
+    container.innerHTML = `
+        <strong>${userProfile.nama}</strong><br>
+        ${userProfile.telepon}<br>
+        ${address.alamatLengkap}<br>
+        ${address.kecamatan ? address.kecamatan + ", " : ""}${address.kota} ${address.kodePos}
+        ${address.catatan ? `<br><small>${address.catatan}</small>` : ''}
+    `;
+}
+
+function openAddressModal() {
+    document.getElementById("addr_alamat").value = address.alamatLengkap || "";
+    document.getElementById("addr_kecamatan").value = address.kecamatan || "";
+    document.getElementById("addr_kota").value = address.kota || "";
+    document.getElementById("addr_kodepos").value = address.kodePos || "";
+    document.getElementById("addr_catatan").value = address.catatan || "";
+    document.getElementById("addressModal").style.display = "flex";
+}
+
+function closeAddressModal() {
+    document.getElementById("addressModal").style.display = "none";
+}
+
+function saveAddressFromForm() {
+    const newAddress = {
+        alamatLengkap: document.getElementById("addr_alamat").value.trim(),
+        kecamatan: document.getElementById("addr_kecamatan").value.trim(),
+        kota: document.getElementById("addr_kota").value.trim(),
+        kodePos: document.getElementById("addr_kodepos").value.trim(),
+        catatan: document.getElementById("addr_catatan").value.trim()
+    };
+
+    if (!newAddress.alamatLengkap || !newAddress.kota || !newAddress.kodePos) {
+        alert("Mohon isi Alamat Lengkap, Kota, dan Kode Pos!");
+        return;
+    }
+
+    address = newAddress;
+    saveAddress();
+    renderAddressDisplay();
+    closeAddressModal();
+    alert("✅ Alamat pengiriman berhasil diperbarui!");
+}
+
+// ==================== PENGATURAN AKUN ====================
+function renderUserProfile() {
+    const nameEl = document.querySelector(".profile-name");
+    const emailEl = document.querySelector(".profile-email");
+    const avatarEl = document.querySelector(".avatar");
+    if (nameEl) nameEl.textContent = userProfile.nama;
+    if (emailEl) emailEl.textContent = userProfile.email;
+    if (avatarEl) avatarEl.src = userProfile.foto;
+}
+
+function openAccountSettings() {
+    document.getElementById("accountModal").style.display = "flex";
+    document.getElementById("user_nama").value = userProfile.nama;
+    document.getElementById("user_email").value = userProfile.email;
+    document.getElementById("user_telepon").value = userProfile.telepon;
+    document.getElementById("previewFoto").src = userProfile.foto;
+}
+
+function previewImage(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById("previewFoto").src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function saveAccountSettings() {
+    const newNama = document.getElementById("user_nama").value.trim();
+    const newEmail = document.getElementById("user_email").value.trim();
+    const newTelepon = document.getElementById("user_telepon").value.trim();
+    const newFoto = document.getElementById("previewFoto").src;
+
+    if (!newNama || !newEmail) {
+        alert("Nama dan Email tidak boleh kosong!");
+        return;
+    }
+
+    userProfile.nama = newNama;
+    userProfile.email = newEmail;
+    userProfile.telepon = newTelepon;
+    userProfile.foto = newFoto;
+
+    saveUserProfile();
+    renderUserProfile();
+    closeAccountModal();
+    alert("✅ Data akun berhasil diperbarui!");
+}
+
+function changePassword() {
+    const currentPass = document.getElementById("current_password").value;
+    const newPass = document.getElementById("new_password").value;
+    const confirmPass = document.getElementById("confirm_password").value;
+
+    if (currentPass !== userProfile.password) return alert("❌ Password saat ini salah!");
+    if (newPass.length < 6) return alert("Password baru minimal 6 karakter!");
+    if (newPass !== confirmPass) return alert("❌ Password baru dan konfirmasi tidak cocok!");
+
+    userProfile.password = newPass;
+    saveUserProfile();
+    document.getElementById("current_password").value = "";
+    document.getElementById("new_password").value = "";
+    document.getElementById("confirm_password").value = "";
+    alert("✅ Password berhasil diubah!");
+}
+
+function closeAccountModal() {
+    document.getElementById("accountModal").style.display = "none";
+}
+
+function logout() {
+    if (confirm("Apakah Anda yakin ingin keluar?")) {
+        alert("👋 Anda telah keluar.");
+        window.location.href = "index.html";
+    }
+}
+
+function toggleSidebar() { document.getElementById("sidebar")?.classList.toggle("active"); }
+function openModal(id) { document.getElementById(id).style.display = "flex"; }
+function closeModal(id) { document.getElementById(id).style.display = "none"; }
+
+// ==================== POP UP PEMBAYARAN ====================
+let selectedPaymentMethod = "COD";
+
+function openPaymentModal() {
+    if (cart.length === 0) return alert("Keranjang masih kosong!");
+
+    // Render daftar barang
+    const itemsHTML = cart.map(item => `
+        <div class="order-item">
+            <span>${item.nama} × ${item.qty}</span>
+            <span>${formatRupiah(item.harga * item.qty)}</span>
+        </div>
+    `).join('');
+    document.getElementById("orderItems").innerHTML = itemsHTML;
+
+    // Render alamat
+    const addrHTML = `
+        <strong>${userProfile.nama}</strong><br>
+        ${userProfile.telepon}<br>
+        ${address.alamatLengkap}<br>
+        ${address.kecamatan}, ${address.kota} ${address.kodePos}
+        ${address.catatan ? `<br><small>${address.catatan}</small>` : ''}
+    `;
+    document.getElementById("paymentAddress").innerHTML = addrHTML;
+
+    // Total
+    const total = cart.reduce((acc, item) => acc + (item.harga * item.qty), 0);
+    document.getElementById("modalTotal").innerText = formatRupiah(total);
+
+    // Render metode pembayaran
+    renderPaymentMethods();
+
+    document.getElementById("paymentModal").style.display = "flex";
+}
+
+function renderPaymentMethods() {
+    const methods = [
+        { id: "COD", name: "Cash on Delivery (COD)", icon: "💵" },
+        { id: "BCA", name: "Transfer BCA", icon: "🏦" },
+        { id: "MANDIRI", name: "Transfer Mandiri", icon: "🏦" },
+        { id: "DANA", name: "DANA", icon: "📱" },
+        { id: "GOPAY", name: "GoPay", icon: "📱" },
+    ];
+
+    const container = document.getElementById("paymentMethods");
+    container.innerHTML = methods.map(m => `
+        <div class="payment-option ${m.id === selectedPaymentMethod ? 'selected' : ''}" 
+             onclick="selectPayment('${m.id}')">
+            <span style="font-size: 24px;">${m.icon}</span>
+            <span>${m.name}</span>
+        </div>
+    `).join('');
+}
+
+function selectPayment(method) {
+    selectedPaymentMethod = method;
+    renderPaymentMethods();
+}
+
+function closePaymentModal() {
+    document.getElementById("paymentModal").style.display = "none";
+}
+
+function confirmPayment() {
+    const total = cart.reduce((acc, item) => acc + (item.harga * item.qty), 0);
+    
+    const newOrder = {
+        id: "ORD-" + Date.now().toString().slice(-8),
+        tanggal: new Date().toLocaleDateString('id-ID', { 
+            day: 'numeric', month: 'long', year: 'numeric', 
+            hour: '2-digit', minute: '2-digit' 
+        }),
+        items: [...cart],
+        total: total,
+        status: "Sedang Diproses",
+        paymentMethod: selectedPaymentMethod
+    };
+
+    orders.unshift(newOrder);
+    saveOrders();
+    cart = [];
+    saveCart();
+
+    closePaymentModal();
+    alert(`✅ Pembayaran berhasil!\nNomor Pesanan: ${newOrder.id}\nMetode: ${selectedPaymentMethod}`);
+    window.location.href = 'riwayat.html';
+}
+
+// ==================== DETAIL RIWAYAT PESANAN ====================
+function showOrderDetail(orderId) {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    const content = document.getElementById("orderDetailContent");
+    
+    let itemsHTML = order.items.map(item => `
+        <div class="order-item">
+            <span>${item.nama} × ${item.qty}</span>
+            <span>${formatRupiah(item.harga * item.qty)}</span>
+        </div>
+    `).join('');
+
+    content.innerHTML = `
+        <div style="padding: 10px 0;">
+            <p><strong>Tanggal:</strong> ${order.tanggal}</p>
+            <p><strong>Status:</strong> <span class="status ${order.status.toLowerCase().replace(/\s/g, '-')}">${order.status}</span></p>
+            <p><strong>Metode Pembayaran:</strong> ${order.paymentMethod || 'COD'}</p>
+            
+            <h3 style="margin: 20px 0 10px;">Daftar Barang</h3>
+            <div style="background:#f9fafb; padding:12px; border-radius:8px;">
+                ${itemsHTML}
+            </div>
+            
+            <div style="margin-top: 20px; text-align:right; font-size:18px; font-weight:700;">
+                Total: ${formatRupiah(order.total)}
+            </div>
+        </div>
+    `;
+
+    document.getElementById("modalOrderId").textContent = `#${order.id}`;
+    document.getElementById("orderDetailModal").style.display = "flex";
+}
+
+function closeOrderDetail() {
+    document.getElementById("orderDetailModal").style.display = "none";
+}
+
+function buyAgain(orderId) {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    cart = order.items.map(item => ({...item}));
+    saveCart();
+    alert("✅ Barang telah dimasukkan ke keranjang!");
+    window.location.href = 'keranjang.html';
+}
