@@ -1,69 +1,84 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="id">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Keranjang - Toko Sembako</title>
-    <link rel="stylesheet" href="style.css" />
-  </head>
-
-  <body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keranjang Belanja - Sembako</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
     <header class="header">
-      <div class="header-inner">
-        <a href="index.html" class="back-btn" style="margin: 0; font-size: 18px"
-          >← Kembali</a
-        >
-        <div class="logo">LOGO</div>
-        <div class="header-icons">
-          <a href="profile.html" class="icon-btn"
-            ><svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle></svg
-          ></a>
-          <a
-            href="keranjang.html"
-            class="icon-btn"
-            style="color: var(--primary)"
-            ><svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <circle cx="9" cy="21" r="1"></circle>
-              <circle cx="20" cy="21" r="1"></circle>
-              <path
-                d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"
-              ></path></svg
-          ></a>
+        <div class="header-inner">
+            <button class="menu-btn" onclick="window.location.href='index.html'">← Kembali</button>
+            <div class="logo">LOGO</div>
         </div>
-      </div>
     </header>
 
-    <main class="cart-page">
-      <h1 class="page-title">Keranjang Belanja</h1>
-      <div id="cartList"></div>
-      <div id="cartSummary" class="cart-total">
-        <div class="cart-row">
-          <span>Total Barang</span><span id="totalItems">0</span>
+    <div class="container cart-page">
+        <h1 class="page-title">Keranjang Belanja</h1>
+        
+        <div id="cartList"></div>
+
+        <div id="cartSummary" class="cart-total" style="margin-top: 20px;">
+            <div class="cart-row">
+                <span>Total Barang</span>
+                <strong id="totalItems">0</strong>
+            </div>
+            <div class="cart-row total">
+                <span>Total Harga</span>
+                <strong id="totalPrice">Rp 0</strong>
+            </div>
+            <button onclick="openPaymentModal()" class="btn-primary" style="width: 100%; padding: 16px; font-size: 18px;">
+             Checkout Sekarang
+            </button>
         </div>
-        <div class="cart-row total">
-          <span>Total Harga</span><span id="totalPrice">Rp 0</span>
-        </div>
-        <button
-          class="btn-primary"
-          style="margin-top: 20px"
-          onclick="alert('Checkout berhasil!')"
-        >
-          Checkout Sekarang
-        </button>
-      </div>
-    </main>
+    </div>
+
     <script src="script.js"></script>
-  </body>
+
+    <!-- POP UP PEMBAYARAN -->
+<div id="paymentModal" class="modal">
+    <div class="modal-content payment-modal">
+        <div class="modal-header">
+            <h2>Konfirmasi Pembayaran</h2>
+            <button class="close" onclick="closePaymentModal()">×</button>
+        </div>
+        
+        <div class="payment-content">
+            <!-- Ringkasan Pesanan -->
+            <div class="section">
+                <h3>Ringkasan Pesanan</h3>
+                <div id="orderItems"></div>
+            </div>
+
+            <!-- Alamat Pengiriman -->
+            <div class="section">
+                <h3>Alamat Pengiriman</h3>
+                <div id="paymentAddress" class="address-box"></div>
+            </div>
+
+            <!-- Metode Pembayaran -->
+            <div class="section">
+                <h3>Pilih Metode Pembayaran</h3>
+                <div class="payment-methods" id="paymentMethods">
+                    <!-- JS akan mengisi ini -->
+                </div>
+            </div>
+
+            <!-- Total -->
+            <div class="total-section">
+                <div class="total-row">
+                    <span>Total Pembayaran</span>
+                    <span id="modalTotal" class="total-amount"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closePaymentModal()">Batalkan</button>
+            <button class="btn-primary" onclick="confirmPayment()">Bayar Sekarang</button>
+        </div>
+    </div>
+</div>
+</body>
 </html>

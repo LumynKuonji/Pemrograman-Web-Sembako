@@ -3,55 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profil Saya - Toko Sembako</title>
+    <title>Profil - Sembako</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header class="header">
         <div class="header-inner">
-            <a href="index.html" class="back-btn" style="margin:0; font-size:18px;">← Kembali</a>
+            <button class="menu-btn" onclick="window.location.href='index.html'">← Kembali</button>
             <div class="logo">LOGO</div>
-            <div class="header-icons">
-                <a href="keranjang.html" class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg></a>
-            </div>
         </div>
     </header>
 
-    <main class="profile-page">
+    <div class="container profile-page">
         <div class="profile-header">
-            <img src="https://i.pravatar.cc/150" alt="Avatar" class="avatar">
+            <img src="https://i.pravatar.cc/150?img=68" alt="Avatar" class="avatar">
             <div>
                 <div class="profile-name">Moreno</div>
                 <div class="profile-email">moreno@gmail.com</div>
             </div>
         </div>
-        <div class="profile-menu">
-            <a href="#" class="profile-item">Pesanan Saya <span class="arrow">→</span></a>
-            <a href="#" class="profile-item">Alamat Pengiriman <span class="arrow">→</span></a>
-            <a href="#" class="profile-item">Pengaturan Akun <span class="arrow">→</span></a>
-            <a href="#" class="profile-item" onclick="openModal('csModal'); return false;">Bantuan & Customer Service <span class="arrow">→</span></a>
-        </div>
-    </main>
 
-    <div class="modal" id="csModal">
+        <div class="profile-menu">
+            <div class="profile-item" onclick="window.location.href='riwayat.html'">Pesanan Saya </div>
+            <div class="profile-item" onclick="openAddressModal()">Alamat Pengiriman </div>
+            <div class="profile-item" onclick="openAccountSettings()">Pengaturan Akun </div>
+            <div class="profile-item" onclick="openModal('csModal')">Bantuan & Customer Service </div>
+        </div>
+
+        <!-- Alamat Pengiriman Saat Ini -->
+        <div style="margin-top: 24px; background: white; padding: 16px; border-radius: 12px; box-shadow: var(--shadow);">
+            <h3 style="margin-bottom: 12px; font-size: 16px;">Alamat Pengiriman Saat Ini</h3>
+            <div id="currentAddress" style="font-size: 14px; line-height: 1.6; color: var(--text-light);"></div>
+        </div>
+    </div>
+
+    <!-- Modal Pengaturan Akun -->
+    <div id="accountModal" class="modal">
+        <div class="modal-content" style="max-width: 460px; max-height: 90vh; overflow-y: auto;">
+            <span class="close" onclick="closeAccountModal()">×</span>
+            <h3>Pengaturan Akun</h3>
+
+            <div style="text-align: center; margin: 20px 0;">
+                <img id="previewFoto" src="https://i.pravatar.cc/150?img=68" 
+                     style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 4px solid var(--primary);">
+                <br><br>
+                <label class="btn-primary" style="cursor: pointer; padding: 8px 20px;">
+                    Ganti Foto Profil
+                    <input type="file" id="fotoInput" accept="image/*" onchange="previewImage(event)" hidden>
+                </label>
+            </div>
+
+            <label>Nama Lengkap</label>
+            <input type="text" id="user_nama">
+
+            <label>Email</label>
+            <input type="email" id="user_email">
+
+            <label>No. Telepon</label>
+            <input type="tel" id="user_telepon">
+
+            <button class="btn-primary" onclick="saveAccountSettings()" style="width:100%; margin:20px 0;">Simpan Perubahan Data</button>
+
+            <hr>
+            <h4>Ganti Password</h4>
+            <label>Password Saat Ini</label>
+            <input type="password" id="current_password" placeholder="Password lama">
+
+            <label>Password Baru</label>
+            <input type="password" id="new_password" placeholder="Minimal 6 karakter">
+
+            <label>Konfirmasi Password Baru</label>
+            <input type="password" id="confirm_password" placeholder="Ulangi password baru">
+
+            <button onclick="changePassword()" style="width:100%; padding:12px; background:#1e40af; color:white; border:none; border-radius:8px; margin-top:10px;">
+                Ubah Password
+            </button>
+
+            <button onclick="logout()" style="margin-top:20px; width:100%; padding:12px; background:#fee2e2; color:#ef4444; border:1px solid #fca5a5; border-radius:8px;">
+                Keluar (Logout)
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal Alamat Pengiriman -->
+    <div id="addressModal" class="modal">
+        <div class="modal-content" style="max-width: 420px;">
+            <span class="close" onclick="closeAddressModal()">×</span>
+            <h3 style="margin-bottom: 20px;">Alamat Pengiriman</h3>
+            
+            <label>Alamat Lengkap</label>
+            <textarea id="addr_alamat" rows="3" placeholder="Jl. Raya Kebon Jeruk No. 45, Rt 05 Rw 03" required></textarea>
+            
+            <label>Kecamatan</label>
+            <input type="text" id="addr_kecamatan" placeholder="Kebon Jeruk" required>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label>Kota / Kabupaten</label>
+                    <input type="text" id="addr_kota" placeholder="Jakarta Barat" required>
+                </div>
+                <div>
+                    <label>Kode Pos</label>
+                    <input type="text" id="addr_kodepos" placeholder="11530" required>
+                </div>
+            </div>
+            
+            <label>Catatan untuk Kurir (Opsional)</label>
+            <input type="text" id="addr_catatan" placeholder="Rumah warna hijau, depan ada pohon mangga">
+
+            <button class="btn-primary" onclick="saveAddressFromForm()" style="margin-top: 20px; width: 100%;">
+                Simpan Alamat
+            </button>
+        </div>
+    </div>
+
+    <!-- Customer Service Modal -->
+    <div id="csModal" class="modal">
         <div class="modal-content">
-            <span class="close" onclick="closeModal('csModal')">&times;</span>
-            <h2>Customer Service</h2>
+            <span class="close" onclick="closeModal('csModal')">×</span>
+            <h3>Customer Service</h3>
             <div class="cs-info">
-                <p>📧 moreno@gmail.com</p>
-                <p>📞 +62 812-7891-6777</p>
-                <p>🕒 Senin - Minggu, 08:00 - 20:00</p>
+                📧 moreno@gmail.com<br>
+                📞 +62 812-7891-6777<br>
+                🕒 Senin - Minggu, 08:00 - 20:00
             </div>
             <button class="btn-primary" onclick="closeModal('csModal')">Tutup</button>
         </div>
     </div>
+
     <script src="script.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            renderAddressDisplay();
+            renderUserProfile();
+        });
+    </script>
 </body>
 </html>
-
-
-
-              
- </body>
-</html>
-                    
