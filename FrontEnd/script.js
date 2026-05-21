@@ -30,7 +30,6 @@ let currentCategory = "Semua";
 let cart = JSON.parse(localStorage.getItem("sembako_cart")) || [];
 let orders = JSON.parse(localStorage.getItem("sembako_orders")) || [];
 
-// ==================== ALAMAT PENGIRIMAN ====================
 let address = JSON.parse(localStorage.getItem("sembako_address")) || {
     alamatLengkap: "Jl. Raya Kebon Jeruk No. 45",
     kecamatan: "Kebon Jeruk",
@@ -39,7 +38,6 @@ let address = JSON.parse(localStorage.getItem("sembako_address")) || {
     catatan: "Rumah warna hijau, depan ada pohon mangga"
 };
 
-// ==================== USER PROFILE ====================
 let userProfile = JSON.parse(localStorage.getItem("sembako_user")) || {
     nama: "Moreno",
     email: "moreno@gmail.com",
@@ -77,7 +75,6 @@ function saveUserProfile() {
     localStorage.setItem("sembako_user", JSON.stringify(userProfile));
 }
 
-// ==================== RENDER & FILTER ====================
 function renderCategories() {
     const container = document.getElementById("categoryList");
     if (!container) return;
@@ -213,22 +210,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// ==================== FUNGSI KERANJANG ====================
-
 function updateQty(id, change) {
     const item = cart.find(item => item.id === id);
     if (!item) return;
 
     item.qty += change;
 
-    // Jika qty jadi 0 atau kurang, hapus otomatis
     if (item.qty <= 0) {
         removeItem(id);
         return;
     }
 
     saveCart();
-    renderCartPage();   // refresh halaman keranjang
+    renderCartPage();
 }
 
 function removeItem(id) {
@@ -239,7 +233,6 @@ function removeItem(id) {
     }
 }
 
-// Fungsi Checkout sudah ada, tapi pastikan tombolnya memanggil fungsi yang benar
 function checkout() {
     if (cart.length === 0) return alert("Keranjang masih kosong!");
 
@@ -268,7 +261,6 @@ function checkout() {
     window.location.href = 'riwayat.html';
 }
 
-// ==================== CART & CHECKOUT ====================
 function goDetail(id) { window.location.href = `detailproduk.html?id=${id}`; }
 
 function addToCart(id) {
@@ -300,7 +292,6 @@ function checkout() {
     window.location.href = 'riwayat.html';
 }
 
-// ==================== RIWAYAT PESANAN ====================
 function renderOrderHistory() {
     const container = document.getElementById("orderList");
     if (!container) return;
@@ -351,7 +342,6 @@ function renderOrderHistory() {
     }).join('');
 }
 
-// ==================== ALAMAT PENGIRIMAN ====================
 function renderAddressDisplay() {
     const container = document.getElementById("currentAddress");
     if (!container) return;
@@ -399,7 +389,6 @@ function saveAddressFromForm() {
     alert("✅ Alamat pengiriman berhasil diperbarui!");
 }
 
-// ==================== PENGATURAN AKUN ====================
 function renderUserProfile() {
     const nameEl = document.querySelector(".profile-name");
     const emailEl = document.querySelector(".profile-email");
@@ -481,13 +470,11 @@ function toggleSidebar() { document.getElementById("sidebar")?.classList.toggle(
 function openModal(id) { document.getElementById(id).style.display = "flex"; }
 function closeModal(id) { document.getElementById(id).style.display = "none"; }
 
-// ==================== POP UP PEMBAYARAN ====================
 let selectedPaymentMethod = "COD";
 
 function openPaymentModal() {
     if (cart.length === 0) return alert("Keranjang masih kosong!");
 
-    // Render daftar barang
     const itemsHTML = cart.map(item => `
         <div class="order-item">
             <span>${item.nama} × ${item.qty}</span>
@@ -506,11 +493,9 @@ function openPaymentModal() {
     `;
     document.getElementById("paymentAddress").innerHTML = addrHTML;
 
-    // Total
     const total = cart.reduce((acc, item) => acc + (item.harga * item.qty), 0);
     document.getElementById("modalTotal").innerText = formatRupiah(total);
 
-    // Render metode pembayaran
     renderPaymentMethods();
 
     document.getElementById("paymentModal").style.display = "flex";
@@ -569,7 +554,6 @@ function confirmPayment() {
     window.location.href = 'riwayat.html';
 }
 
-// ==================== DETAIL RIWAYAT PESANAN ====================
 function showOrderDetail(orderId) {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;

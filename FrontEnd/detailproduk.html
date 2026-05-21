@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- HEADER -->
     <header class="header">
         <div class="header-inner">
             <button class="menu-btn" onclick="history.back()">← Kembali</button>
@@ -28,14 +27,12 @@
 
     <div class="container detail-page">
         <div id="detailContainer">
-            <!-- Detail produk akan dimuat di sini oleh JavaScript -->
         </div>
     </div>
 
     <script src="script.js"></script>
 
     <script>
-        // Pastikan renderDetailPage dipanggil
         document.addEventListener("DOMContentLoaded", () => {
             updateCartBadge();
             renderDetailPage();

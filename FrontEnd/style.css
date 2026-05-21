@@ -129,7 +129,6 @@ button { border: none; background: none; cursor: pointer; font-family: inherit; 
     .search-box input { padding: 8px 10px 8px 36px; font-size: 13px; }
 }
 
-/* ==================== RIWAYAT PESANAN - VERSI MENENGAH ==================== */
 .order-list {
     display: flex;
     flex-direction: column;
@@ -213,7 +212,6 @@ button { border: none; background: none; cursor: pointer; font-family: inherit; 
     background: var(--primary-dark);
 }
 
-/* ==================== MODAL ALAMAT ==================== */
 .modal label {
     display: block;
     margin: 12px 0 6px;
@@ -237,7 +235,6 @@ button { border: none; background: none; cursor: pointer; font-family: inherit; 
     min-height: 80px;
 } 
 
-/* Ikon Keranjang */
 .icon-btn {
     width: 40px;
     height: 40px;
@@ -278,7 +275,6 @@ button { border: none; background: none; cursor: pointer; font-family: inherit; 
     display: none;
 }
 
-/* ==================== DETAIL PRODUK (VERSI BARU) ==================== */
 .detail-page {
     padding: 16px;
     max-width: 1000px;
@@ -361,7 +357,6 @@ button { border: none; background: none; cursor: pointer; font-family: inherit; 
     transform: translateY(-2px);
 }
 
-/* ==================== IKON KERANJANG ==================== */
 .cart-icon-btn {
     position: relative;
     padding: 8px;
@@ -396,7 +391,6 @@ button { border: none; background: none; cursor: pointer; font-family: inherit; 
     padding: 0 5px;
 }
 
-/* ==================== POP UP PEMBAYARAN ==================== */
 .payment-modal {
     width: 90%;
     max-width: 480px;
