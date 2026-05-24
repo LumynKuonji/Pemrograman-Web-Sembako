@@ -1,10 +1,19 @@
+import sys
+from pathlib import Path
+
+# Folder BackEnd harus ada di Python path agar import Database/View/Controller jalan
+BACKEND_ROOT = Path(__file__).resolve().parent.parent
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
+
 from flask import Flask
 from Database.database import db, Produk
 from View.routes import register_routes
 
 def create_app():
     app = Flask(__name__)
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///toko_sembako.db'
+    db_path = BACKEND_ROOT / "toko_sembako.db"
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path.as_posix()}"
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     db.init_app(app)
@@ -33,6 +42,8 @@ def seed_data():
         {"id": 19, "nama": "Head & Shoulder 350ml", "harga": 87000, "kategori": "Kebutuhan Mandi", "img": "https://i.pinimg.com/1200x/54/7e/12/547e12146ace111fe9d98c2c7598af2a.jpg", "desc": "Shampoo anti ketombe."},
         {"id": 20, "nama": "SUNLIGHT BOTOL 750 ML", "harga": 49000, "kategori": "Kebutuhan Cuci", "img": "https://i.pinimg.com/1200x/4c/78/bb/4c78bb6fd632ed391f2ec25769f1b251.jpg", "desc": "Sabun cuci piring."},
         {"id": 22, "nama": "SO GOOD TELUR OMEGA3 10S", "harga": 34000, "kategori": "Produk Segar", "img": "https://down-id.img.susercontent.com/file/id-11134275-7rbk2-ma7ysj9nanj5a9@resize_w900_nl.webp", "desc": "Telur kaya omega."},
+        {"id": 25, "nama": "Minyak Goreng Bimoli 2 L", "harga": 42000, "kategori": "Bahan Pokok", "img": "https://i.pinimg.com/736x/a1/b2/c3/a1b2c3d4e5f6789012345678abcdef01.jpg", "desc": "Minyak goreng berkualitas."},
+        {"id": 26, "nama": "Sarden King 155 gr", "harga": 18000, "kategori": "Makanan Instan", "img": "https://i.pinimg.com/736x/b2/c3/d4/b2c3d4e5f6789012345678abcdef0123.jpg", "desc": "Ikan sarden dalam saus tomat."},
     ]
 
     for p in products_data:
@@ -51,6 +62,7 @@ if __name__ == '__main__':
     print("Server berjalan di http://localhost:5000")
     print("API Produk: http://localhost:5000/api/products")
     print("API Cart: http://localhost:5000/api/cart")
+    print("API Rekomendasi: http://localhost:5000/api/recommendations?cart_ids=1")
     create_app().run(debug=True)
 
 

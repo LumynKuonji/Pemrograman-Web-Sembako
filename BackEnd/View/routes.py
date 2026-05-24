@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from Controller import produk_controller, keranjang_controller
+from Controller import produk_controller, keranjang_controller, mba_controller
 from Database.database import db, Produk
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -35,7 +35,7 @@ def api_cart_add():
     Logic: Menambah barang ke database.
     """
     data = request.json
-    if not data or 'produk_id' not in
+    if not data or 'produk_id' not in data:
         return jsonify({'error': 'ID Produk diperlukan'}), 400
     
     keranjang_controller.tambah_ke_keranjang(data['produk_id'], data.get('qty', 1))
@@ -50,6 +50,27 @@ def api_cart_update(produk_id):
     data = request.json
     keranjang_controller.update_qty_keranjang(produk_id, data.get('qty', 0))
     return jsonify({'status': 'success', 'cart': keranjang_controller.get_isi_keranjang()})
+
+@api_bp.route('/recommendations', methods=['GET'])
+def api_recommendations():
+    """
+    Endpoint: GET /api/recommendations?cart_ids=1,25
+    Logic: Rekomendasi MBA berdasarkan isi keranjang.
+    """
+    cart_ids_param = request.args.get('cart_ids', '')
+    cart_ids = []
+    if cart_ids_param:
+        try:
+            cart_ids = [int(x.strip()) for x in cart_ids_param.split(',') if x.strip()]
+        except ValueError:
+            return jsonify({'error': 'cart_ids harus berupa angka dipisah koma'}), 400
+
+    result = mba_controller.get_recommendations(cart_ids)
+    produk_map = {p.id: p.to_dict() for p in Produk.query.all()}
+    result['products'] = [
+        produk_map[pid] for pid in result['product_ids'] if pid in produk_map
+    ]
+    return jsonify(result)
 
 @api_bp.route('/cart/clear', methods=['POST'])
 def api_cart_clear():

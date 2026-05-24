@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masuk - Toko Sembako</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-inner">
+            <button class="menu-btn" onclick="goBackFromLogin()">← Kembali</button>
+            <div class="logo">LOGO</div>
+        </div>
+    </header>
+
+    <div class="container login-page">
+        <h1 class="page-title">Masuk Akun</h1>
+        <p class="login-subtitle">Login diperlukan untuk menambah barang ke keranjang dan checkout.</p>
+
+        <div class="login-card">
+            <label>Email</label>
+            <input type="email" id="loginEmail" placeholder="contoh: moreno@gmail.com" autocomplete="email">
+
+            <label>Password</label>
+            <input type="password" id="loginPassword" placeholder="Minimal 6 karakter" autocomplete="current-password">
+
+            <button class="btn-primary login-btn" onclick="handleLogin()">Masuk</button>
+
+            <div class="login-hint">
+                <strong>Akun demo:</strong><br>
+                Email: moreno@gmail.com<br>
+                Password: 123456
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            initBottomNav();
+            if (isLoggedIn()) {
+                window.location.href = getReturnUrl() || "index.html";
+            }
+            document.getElementById("loginPassword")?.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") handleLogin();
+            });
+        });
+    </script>
+</body>
+</html>

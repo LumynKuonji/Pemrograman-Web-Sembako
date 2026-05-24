@@ -15,18 +15,23 @@
     </header>
 
     <div class="container profile-page">
+        <div id="guestBanner" class="guest-banner">
+            Anda masuk sebagai <strong>Tamu</strong>. Login untuk keranjang, checkout, dan pengaturan akun.
+            <a href="login.html" class="guest-login-link">Masuk sekarang →</a>
+        </div>
+
         <div class="profile-header">
             <img src="https://i.pravatar.cc/150?img=68" alt="Avatar" class="avatar">
             <div>
-                <div class="profile-name">Moreno</div>
-                <div class="profile-email">moreno@gmail.com</div>
+                <div class="profile-name">Tamu</div>
+                <div class="profile-email">Belum login</div>
             </div>
         </div>
 
         <div class="profile-menu">
             <div class="profile-item" onclick="window.location.href='riwayat.html'">Pesanan Saya </div>
-            <div class="profile-item" onclick="openAddressModal()">Alamat Pengiriman </div>
-            <div class="profile-item" onclick="openAccountSettings()">Pengaturan Akun </div>
+            <div class="profile-item" id="addressMenuItem" onclick="openAddressModal()">Alamat Pengiriman </div>
+            <div class="profile-item" id="settingsMenuItem" onclick="openAccountSettings()">Pengaturan Akun </div>
             <div class="profile-item" onclick="openModal('csModal')">Bantuan & Customer Service </div>
         </div>
 
@@ -77,9 +82,6 @@
                 Ubah Password
             </button>
 
-            <button onclick="logout()" style="margin-top:20px; width:100%; padding:12px; background:#fee2e2; color:#ef4444; border:1px solid #fca5a5; border-radius:8px;">
-                Keluar (Logout)
-            </button>
         </div>
     </div>
 

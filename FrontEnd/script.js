@@ -22,7 +22,28 @@ const products = [
     { id: 21, nama: "Pepsodent Action 123 180 GR", harga: 27000, kategori: "Kebutuhan Mandi", img: "https://i.pinimg.com/1200x/34/a8/4d/34a84dac30633b6cff4085bd3f778223.jpg", desc: "Sikat gigi 3 arah bersih maksimal." },
     { id: 22, nama: "SO GOOD TELUR OMEGA3 10S", harga: 34000, kategori: "Produk Segar", img: "https://down-id.img.susercontent.com/file/id-11134275-7rbk2-ma7ysj9nanj5a9@resize_w900_nl.webp", desc: "Telur kaya omega untuk tumbuh kembang." },
     { id: 23, nama: "Smoked Beef Metzger 100gr", harga: 23000, kategori: "Produk Segar", img: "https://encrypted-tbn1.gstatic.com/shopping?q=tbn:ANd9GcSLxvY__qk9kjbgXOHQ5e2CwtDzMZqPDASukce-bu22olpginNVvA1ZOTdOpE78BwC1X7vzTX0wBeq8esRfG0ZYQ-A1xpikOi_-crX6_c7ZSUtt4h0yJAppv5A", desc: "Daging sapi asap halal siap saji." },
-    { id: 24, nama: "Snack Buah Strawberry Kering Freeze Dried 1 Kg", harga: 66000, kategori: "Snack", img: "https://i.pinimg.com/1200x/35/31/ee/3531ee7dab3c6f86c5be2d1667e3d578.jpg", desc: "Snack Buah Strawberry Kering Freeze Dried sehat tanpa pengawet pewarna rendah kalori cemilan diet." }
+    { id: 24, nama: "Snack Buah Strawberry Kering Freeze Dried 1 Kg", harga: 66000, kategori: "Snack", img: "https://i.pinimg.com/1200x/35/31/ee/3531ee7dab3c6f86c5be2d1667e3d578.jpg", desc: "Snack Buah Strawberry Kering Freeze Dried sehat tanpa pengawet pewarna rendah kalori cemilan diet." },
+    { id: 25, nama: "Minyak Goreng Bimoli 2 L", harga: 42000, kategori: "Bahan Pokok", img: "https://i.pinimg.com/736x/a1/b2/c3/a1b2c3d4e5f6789012345678abcdef01.jpg", desc: "Minyak goreng berkualitas untuk masak sehari-hari." },
+    { id: 26, nama: "Sarden King 155 gr", harga: 18000, kategori: "Makanan Instan", img: "https://i.pinimg.com/736x/b2/c3/d4/b2c3d4e5f6789012345678abcdef0123.jpg", desc: "Ikan sarden dalam saus tomat, praktis dan bergizi." }
+];
+
+const MBA_RULES = [
+    { id: "paket-beras", nama: "Paket Dapur Lengkap", deskripsi: "Pelanggan yang beli beras sering juga membeli minyak goreng dan sarden.", triggers: [1], recommends: [25, 26], confidence: 0.72 },
+    { id: "paket-indomie", nama: "Lengkapi Masakan Instan", deskripsi: "Sering dibeli bersama: bumbu penyedap dan minuman.", triggers: [5, 6, 7, 8, 9], recommends: [11, 13], confidence: 0.65 },
+    { id: "paket-teh", nama: "Temani Teh dengan Camilan", deskripsi: "Pelanggan pembeli teh sering menambah snack.", triggers: [13, 14, 15], recommends: [16, 17], confidence: 0.58 },
+    { id: "paket-cuci", nama: "Kebutuhan Rumah Tangga", deskripsi: "Sabun cuci piring sering dibeli bersama kebutuhan mandi.", triggers: [20], recommends: [19, 21], confidence: 0.55 }
+];
+const MBA_DEFAULT_IDS = [1, 25, 26, 5, 13];
+
+const GUEST_PROFILE = {
+    nama: "Tamu",
+    email: "Belum login — masuk untuk fitur lengkap",
+    telepon: "-",
+    foto: "https://api.dicebear.com/7.x/initials/svg?seed=Guest&backgroundColor=7fb8b3"
+};
+
+const DEMO_USERS = [
+    { email: "moreno@gmail.com", password: "123456", nama: "Moreno", telepon: "+62 812-7891-6777", foto: "https://i.pravatar.cc/150?img=68" }
 ];
 
 const categories = ["Semua", "Bahan Pokok", "Makanan Instan", "Bumbu Dapur", "Minuman", "Snack", "Kebutuhan Mandi", "Kebutuhan Cuci", "Produk Segar"];
@@ -38,16 +59,135 @@ let address = JSON.parse(localStorage.getItem("sembako_address")) || {
     catatan: "Rumah warna hijau, depan ada pohon mangga"
 };
 
-let userProfile = JSON.parse(localStorage.getItem("sembako_user")) || {
-    nama: "Moreno",
-    email: "moreno@gmail.com",
-    telepon: "+62 812-7891-6777",
-    foto: "https://i.pravatar.cc/150?img=68",
-    password: "123456"
-};
+let registeredUsers = JSON.parse(localStorage.getItem("sembako_users")) || DEMO_USERS;
+let authSession = JSON.parse(localStorage.getItem("sembako_session"));
+let userProfile = JSON.parse(localStorage.getItem("sembako_user")) || { ...DEMO_USERS[0], password: "123456" };
+
+function isLoggedIn() {
+    return !!(authSession && authSession.email);
+}
+
+function getActiveProfile() {
+    if (!isLoggedIn()) return { ...GUEST_PROFILE };
+    const u = registeredUsers.find(x => x.email === authSession.email);
+    return u ? { nama: u.nama, email: u.email, telepon: u.telepon, foto: u.foto } : { ...GUEST_PROFILE };
+}
+
+function requireLogin(message) {
+    if (isLoggedIn()) return true;
+    const msg = message || "Silakan masuk terlebih dahulu untuk menggunakan fitur ini.";
+    if (confirm(msg + "\n\nKe halaman login?")) {
+        const returnTo = window.location.pathname.split("/").pop() + window.location.search;
+        window.location.href = "login.html?return=" + encodeURIComponent(returnTo);
+    }
+    return false;
+}
+
+function getReturnUrl() {
+    const p = new URLSearchParams(window.location.search);
+    return p.get("return");
+}
+
+function goBackFromLogin() {
+    const ret = getReturnUrl();
+    window.location.href = ret || "index.html";
+}
+
+function handleLogin() {
+    const email = document.getElementById("loginEmail")?.value.trim().toLowerCase();
+    const password = document.getElementById("loginPassword")?.value;
+    if (!email || !password) return alert("Email dan password wajib diisi.");
+    const user = registeredUsers.find(u => u.email.toLowerCase() === email && u.password === password);
+    if (!user) return alert("Email atau password salah.");
+    authSession = { email: user.email, loggedInAt: Date.now() };
+    userProfile = { ...user, password: user.password };
+    localStorage.setItem("sembako_session", JSON.stringify(authSession));
+    localStorage.setItem("sembako_user", JSON.stringify(userProfile));
+    alert("Selamat datang, " + user.nama + "!");
+    window.location.href = getReturnUrl() || "index.html";
+}
+
+function doLogout() {
+    if (!confirm("Keluar dari akun?")) return;
+    authSession = null;
+    localStorage.removeItem("sembako_session");
+    alert("Anda telah keluar. Mode tamu aktif.");
+    window.location.href = "index.html";
+}
 
 function formatRupiah(angka) {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
+}
+
+function getCartRecommendations() {
+    const cartIds = new Set(cart.map(i => i.id));
+    const scored = {};
+    const matchedRules = [];
+    for (const rule of MBA_RULES) {
+        if (!rule.triggers.some(t => cartIds.has(t))) continue;
+        matchedRules.push(rule);
+        for (const pid of rule.recommends) {
+            if (cartIds.has(pid)) continue;
+            scored[pid] = (scored[pid] || 0) + rule.confidence;
+        }
+    }
+    if (Object.keys(scored).length === 0) {
+        const ids = MBA_DEFAULT_IDS.filter(id => !cartIds.has(id)).slice(0, 6);
+        return { mode: "default", rules: [], productIds: ids };
+    }
+    const productIds = Object.keys(scored).map(Number).sort((a, b) => scored[b] - scored[a]).slice(0, 6);
+    return { mode: "mba", rules: matchedRules, productIds };
+}
+
+function renderCartRecommendations() {
+    const section = document.getElementById("cartRecommendations");
+    if (!section) return;
+    const { mode, rules, productIds } = getCartRecommendations();
+    const recoProducts = productIds.map(id => products.find(p => p.id === id)).filter(Boolean);
+    if (recoProducts.length === 0) {
+        section.innerHTML = "";
+        return;
+    }
+    const rulesHTML = rules.length > 0
+        ? rules.map(r => `<p class="reco-rule"><strong>${r.nama}:</strong> ${r.deskripsi}</p>`).join("")
+        : `<p class="reco-rule">Produk populer yang sering dibeli pelanggan toko sembako.</p>`;
+    const title = mode === "mba" ? "Rekomendasi untuk Anda (MBA)" : "Rekomendasi Populer";
+    section.innerHTML = `
+        <div class="reco-section">
+            <h2 class="reco-title">${title}</h2>
+            <div class="reco-rules">${rulesHTML}</div>
+            <div class="reco-grid">
+                ${recoProducts.map(p => `
+                    <div class="reco-card">
+                        <img src="${p.img}" alt="${p.nama}" onclick="goDetail(${p.id})">
+                        <div class="reco-card-body">
+                            <div class="reco-name" onclick="goDetail(${p.id})">${p.nama}</div>
+                            <div class="reco-price">${formatRupiah(p.harga)}</div>
+                            <button class="reco-add-btn" onclick="addToCart(${p.id})">+ Keranjang</button>
+                        </div>
+                    </div>
+                `).join("")}
+            </div>
+        </div>`;
+}
+
+function initBottomNav() {
+    if (document.getElementById("bottomNav")) return;
+    const path = window.location.pathname;
+    const page = path.split("/").pop() || "index.html";
+    const isActive = (name) => page === name ? "active" : "";
+    const loginItem = isLoggedIn()
+        ? `<button class="bottom-nav-item" onclick="doLogout()"><span class="nav-icon">🚪</span><span>Logout</span></button>`
+        : `<a href="login.html" class="bottom-nav-item ${isActive("login.html")}"><span class="nav-icon">🔑</span><span>Login</span></a>`;
+    const nav = document.createElement("nav");
+    nav.id = "bottomNav";
+    nav.className = "bottom-nav";
+    nav.innerHTML = `
+        <a href="index.html" class="bottom-nav-item ${isActive("index.html")}"><span class="nav-icon">🏠</span><span>Beranda</span></a>
+        <a href="keranjang.html" class="bottom-nav-item ${isActive("keranjang.html")}"><span class="nav-icon">🛒</span><span>Keranjang</span></a>
+        <a href="profile.html" class="bottom-nav-item ${isActive("profile.html")}"><span class="nav-icon">👤</span><span>Profil</span></a>
+        ${loginItem}`;
+    document.body.appendChild(nav);
 }
 
 function updateCartBadge() {
@@ -118,6 +258,7 @@ function renderCartPage() {
     if (cart.length === 0) {
         container.innerHTML = `<div class="empty-msg">Keranjang masih kosong.</div>`;
         document.getElementById("cartSummary")?.classList.add("hidden");
+        renderCartRecommendations();
         return;
     }
 
@@ -146,6 +287,7 @@ function renderCartPage() {
     document.getElementById("totalPrice").innerText = formatRupiah(total);
     document.getElementById("totalItems").innerText = cart.reduce((acc, i) => acc + i.qty, 0);
     document.getElementById("cartSummary").classList.remove("hidden");
+    renderCartRecommendations();
 }
 
 function renderDetailPage() {
@@ -192,25 +334,29 @@ document.addEventListener("DOMContentLoaded", () => {
     const isDetail = window.location.pathname.includes("detailproduk.html");
     const isProfile = window.location.pathname.includes("profile.html");
     const isRiwayat = window.location.pathname.includes("riwayat.html");
+    const isLogin = window.location.pathname.includes("login.html");
+
+    initBottomNav();
+    updateCartBadge();
 
     if (isIndex) {
-        updateCartBadge();
         renderCategories();
         renderProducts(products);
         document.getElementById("searchInput")?.addEventListener("input", () => filterProduk(currentCategory));
     }
-
     if (isCart) renderCartPage();
     if (isDetail) renderDetailPage();
-    if (isDetail) updateCartBadge(); 
     if (isRiwayat) renderOrderHistory();
     if (isProfile) {
         renderAddressDisplay();
         renderUserProfile();
+        updateProfileGuestUI();
     }
+    if (!isLogin && isLoggedIn()) userProfile = { ...registeredUsers.find(u => u.email === authSession.email), password: userProfile.password };
 });
 
 function updateQty(id, change) {
+    if (!requireLogin("Masuk dulu untuk mengubah keranjang.")) return;
     const item = cart.find(item => item.id === id);
     if (!item) return;
 
@@ -226,6 +372,7 @@ function updateQty(id, change) {
 }
 
 function removeItem(id) {
+    if (!requireLogin("Masuk dulu untuk mengubah keranjang.")) return;
     if (confirm("Hapus barang ini dari keranjang?")) {
         cart = cart.filter(item => item.id !== id);
         saveCart();
@@ -233,63 +380,17 @@ function removeItem(id) {
     }
 }
 
-function checkout() {
-    if (cart.length === 0) return alert("Keranjang masih kosong!");
-
-    const total = cart.reduce((acc, item) => acc + (item.harga * item.qty), 0);
-    
-    const newOrder = {
-        id: "ORD-" + Date.now().toString().slice(-8),
-        tanggal: new Date().toLocaleDateString('id-ID', { 
-            day: 'numeric', 
-            month: 'long', 
-            year: 'numeric', 
-            hour: '2-digit', 
-            minute: '2-digit' 
-        }),
-        items: [...cart],
-        total: total,
-        status: "Sedang Diproses"
-    };
-
-    orders.unshift(newOrder);
-    saveOrders();
-    cart = [];
-    saveCart();
-    
-    alert(`✅ Pesanan ${newOrder.id} berhasil dibuat!`);
-    window.location.href = 'riwayat.html';
-}
-
 function goDetail(id) { window.location.href = `detailproduk.html?id=${id}`; }
 
 function addToCart(id) {
+    if (!requireLogin("Masuk dulu untuk menambah barang ke keranjang.")) return;
     const product = products.find(p => p.id === id);
+    if (!product) return;
     const existing = cart.find(item => item.id === id);
     if (existing) existing.qty += 1;
     else cart.push({ id: product.id, nama: product.nama, harga: product.harga, img: product.img, qty: 1 });
     saveCart();
     alert(`${product.nama} ditambahkan ke keranjang!`);
-}
-
-function checkout() {
-    if (cart.length === 0) return alert("Keranjang masih kosong!");
-    const total = cart.reduce((acc, item) => acc + (item.harga * item.qty), 0);
-    
-    const newOrder = {
-        id: "ORD-" + Date.now().toString().slice(-8),
-        tanggal: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-        items: [...cart],
-        total: total,
-        status: "Sedang Diproses"
-    };
-
-    orders.unshift(newOrder);
-    saveOrders();
-    cart = [];
-    saveCart();
-    alert(`✅ Pesanan ${newOrder.id} berhasil dibuat!`);
-    window.location.href = 'riwayat.html';
 }
 
 function renderOrderHistory() {
@@ -345,10 +446,14 @@ function renderOrderHistory() {
 function renderAddressDisplay() {
     const container = document.getElementById("currentAddress");
     if (!container) return;
-    
+    const profile = getActiveProfile();
+    if (!isLoggedIn()) {
+        container.innerHTML = `<em>Masuk ke akun untuk mengatur alamat pengiriman.</em>`;
+        return;
+    }
     container.innerHTML = `
-        <strong>${userProfile.nama}</strong><br>
-        ${userProfile.telepon}<br>
+        <strong>${profile.nama}</strong><br>
+        ${profile.telepon}<br>
         ${address.alamatLengkap}<br>
         ${address.kecamatan ? address.kecamatan + ", " : ""}${address.kota} ${address.kodePos}
         ${address.catatan ? `<br><small>${address.catatan}</small>` : ''}
@@ -356,6 +461,7 @@ function renderAddressDisplay() {
 }
 
 function openAddressModal() {
+    if (!requireLogin("Masuk dulu untuk mengatur alamat pengiriman.")) return;
     document.getElementById("addr_alamat").value = address.alamatLengkap || "";
     document.getElementById("addr_kecamatan").value = address.kecamatan || "";
     document.getElementById("addr_kota").value = address.kota || "";
@@ -390,15 +496,26 @@ function saveAddressFromForm() {
 }
 
 function renderUserProfile() {
+    const profile = getActiveProfile();
     const nameEl = document.querySelector(".profile-name");
     const emailEl = document.querySelector(".profile-email");
     const avatarEl = document.querySelector(".avatar");
-    if (nameEl) nameEl.textContent = userProfile.nama;
-    if (emailEl) emailEl.textContent = userProfile.email;
-    if (avatarEl) avatarEl.src = userProfile.foto;
+    if (nameEl) nameEl.textContent = profile.nama;
+    if (emailEl) emailEl.textContent = profile.email;
+    if (avatarEl) avatarEl.src = profile.foto;
+}
+
+function updateProfileGuestUI() {
+    const banner = document.getElementById("guestBanner");
+    const settingsItem = document.getElementById("settingsMenuItem");
+    const addressItem = document.getElementById("addressMenuItem");
+    if (banner) banner.style.display = isLoggedIn() ? "none" : "block";
+    if (settingsItem) settingsItem.style.display = isLoggedIn() ? "block" : "none";
+    if (addressItem) addressItem.style.opacity = isLoggedIn() ? "1" : "0.5";
 }
 
 function openAccountSettings() {
+    if (!requireLogin("Masuk dulu untuk mengubah pengaturan akun.")) return;
     document.getElementById("accountModal").style.display = "flex";
     document.getElementById("user_nama").value = userProfile.nama;
     document.getElementById("user_email").value = userProfile.email;
@@ -432,6 +549,13 @@ function saveAccountSettings() {
     userProfile.telepon = newTelepon;
     userProfile.foto = newFoto;
 
+    const idx = registeredUsers.findIndex(u => u.email === authSession?.email);
+    if (idx >= 0) {
+        registeredUsers[idx] = { ...registeredUsers[idx], nama: newNama, email: newEmail, telepon: newTelepon, foto: newFoto };
+        localStorage.setItem("sembako_users", JSON.stringify(registeredUsers));
+        if (authSession) authSession.email = newEmail;
+        localStorage.setItem("sembako_session", JSON.stringify(authSession));
+    }
     saveUserProfile();
     renderUserProfile();
     closeAccountModal();
@@ -459,12 +583,7 @@ function closeAccountModal() {
     document.getElementById("accountModal").style.display = "none";
 }
 
-function logout() {
-    if (confirm("Apakah Anda yakin ingin keluar?")) {
-        alert("👋 Anda telah keluar.");
-        window.location.href = "index.html";
-    }
-}
+function logout() { doLogout(); }
 
 function toggleSidebar() { document.getElementById("sidebar")?.classList.toggle("active"); }
 function openModal(id) { document.getElementById(id).style.display = "flex"; }
@@ -473,6 +592,7 @@ function closeModal(id) { document.getElementById(id).style.display = "none"; }
 let selectedPaymentMethod = "COD";
 
 function openPaymentModal() {
+    if (!requireLogin("Masuk dulu untuk checkout.")) return;
     if (cart.length === 0) return alert("Keranjang masih kosong!");
 
     const itemsHTML = cart.map(item => `
@@ -484,9 +604,10 @@ function openPaymentModal() {
     document.getElementById("orderItems").innerHTML = itemsHTML;
 
     // Render alamat
+    const profile = getActiveProfile();
     const addrHTML = `
-        <strong>${userProfile.nama}</strong><br>
-        ${userProfile.telepon}<br>
+        <strong>${profile.nama}</strong><br>
+        ${profile.telepon}<br>
         ${address.alamatLengkap}<br>
         ${address.kecamatan}, ${address.kota} ${address.kodePos}
         ${address.catatan ? `<br><small>${address.catatan}</small>` : ''}
@@ -593,6 +714,7 @@ function closeOrderDetail() {
 }
 
 function buyAgain(orderId) {
+    if (!requireLogin("Masuk dulu untuk membeli lagi.")) return;
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
 
