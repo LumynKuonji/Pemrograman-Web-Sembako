@@ -1,8 +1,75 @@
-from flask import Blueprint, request, jsonify
-from Controller import produk_controller, keranjang_controller, mba_controller
-from Database.database import db, Produk
+from flask import Blueprint, jsonify, request
+from Controller import auth_controller, chatbot_controller, keranjang_controller, mba_controller, produk_controller
+from Database.database import Produk, db
 
-api_bp = Blueprint('api', __name__, url_prefix='/api')
+api_bp = Blueprint("api", __name__, url_prefix="/api")
+
+
+def _cors_preflight():
+    return "", 204
+
+
+def _get_user_from_request():
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        return auth_controller.get_user_by_token(auth[7:].strip())
+    return None
+
+
+@api_bp.route("/auth/register", methods=["POST", "OPTIONS"])
+def api_register():
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    data = request.json or {}
+    nama = data.get("nama", "").strip()
+    email = data.get("email", "").strip()
+    password = data.get("password", "")
+    telepon = data.get("telepon")
+    if not nama or not email or not password:
+        return jsonify({"error": "Nama, email, dan password wajib diisi"}), 400
+    user, err = auth_controller.register_user(nama, email, password, telepon)
+    if err:
+        return jsonify({"error": err}), 400
+    return jsonify({"status": "success", "user": user.to_dict()}), 201
+
+
+@api_bp.route("/auth/login", methods=["POST", "OPTIONS"])
+def api_login():
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    data = request.json or {}
+    email = data.get("email", "")
+    password = data.get("password", "")
+    if not email or not password:
+        return jsonify({"error": "Email dan password wajib diisi"}), 400
+    user, token, err = auth_controller.login_user(email, password)
+    if err:
+        return jsonify({"error": err}), 401
+    return jsonify({
+        "status": "success",
+        "token": token,
+        "user": user.to_dict(),
+    })
+
+
+@api_bp.route("/auth/logout", methods=["POST", "OPTIONS"])
+def api_logout():
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    auth = request.headers.get("Authorization", "")
+    token = auth[7:].strip() if auth.startswith("Bearer ") else None
+    auth_controller.logout_user(token)
+    return jsonify({"status": "success"})
+
+
+@api_bp.route("/auth/me", methods=["GET", "OPTIONS"])
+def api_me():
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    user = _get_user_from_request()
+    if not user:
+        return jsonify({"error": "Belum login"}), 401
+    return jsonify({"user": user.to_dict()})
 
 @api_bp.route('/products', methods=['GET'])
 def api_products():
@@ -26,7 +93,9 @@ def api_cart_get():
     Endpoint: GET /api/cart
     Logic: Mengambil isi keranjang dari database.
     """
-    return jsonify(keranjang_controller.get_isi_keranjang())
+    user = _get_user_from_request()
+    uid = user.id if user else None
+    return jsonify(keranjang_controller.get_isi_keranjang(uid))
 
 @api_bp.route('/cart', methods=['POST'])
 def api_cart_add():
@@ -38,8 +107,10 @@ def api_cart_add():
     if not data or 'produk_id' not in data:
         return jsonify({'error': 'ID Produk diperlukan'}), 400
     
-    keranjang_controller.tambah_ke_keranjang(data['produk_id'], data.get('qty', 1))
-    return jsonify({'status': 'success', 'cart': keranjang_controller.get_isi_keranjang()})
+    user = _get_user_from_request()
+    uid = user.id if user else None
+    keranjang_controller.tambah_ke_keranjang(data["produk_id"], data.get("qty", 1), uid)
+    return jsonify({"status": "success", "cart": keranjang_controller.get_isi_keranjang(uid)})
 
 @api_bp.route('/cart/<int:produk_id>', methods=['PUT'])
 def api_cart_update(produk_id):
@@ -48,8 +119,10 @@ def api_cart_update(produk_id):
     Logic: Update jumlah barang.
     """
     data = request.json
-    keranjang_controller.update_qty_keranjang(produk_id, data.get('qty', 0))
-    return jsonify({'status': 'success', 'cart': keranjang_controller.get_isi_keranjang()})
+    user = _get_user_from_request()
+    uid = user.id if user else None
+    keranjang_controller.update_qty_keranjang(produk_id, data.get("qty", 0), uid)
+    return jsonify({"status": "success", "cart": keranjang_controller.get_isi_keranjang(uid)})
 
 @api_bp.route('/recommendations', methods=['GET'])
 def api_recommendations():
@@ -72,14 +145,72 @@ def api_recommendations():
     ]
     return jsonify(result)
 
+@api_bp.route("/chat/models", methods=["GET", "OPTIONS"])
+def api_chat_models():
+    """Daftar model NVIDIA yang tersedia untuk API key Anda."""
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    provider, base_url, api_key, current = chatbot_controller.get_ai_config()
+    if provider != "nvidia":
+        return jsonify({"error": "Endpoint ini hanya untuk AI_PROVIDER=nvidia"}), 400
+    models, err = chatbot_controller.list_nvidia_models(api_key, base_url)
+    if err:
+        return jsonify({"error": err, "current_model": current}), 502
+    return jsonify({"models": models, "current_model": current, "hint": "Salin id persis ke AI_MODEL"})
+
+
+@api_bp.route("/chat/status", methods=["GET", "OPTIONS"])
+def api_chat_status():
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    provider, base_url, _, model = chatbot_controller.get_ai_config()
+    return jsonify({
+        "configured": chatbot_controller.is_configured(),
+        "provider": provider,
+        "base_url_set": bool(base_url),
+        "model": model,
+    })
+
+
+@api_bp.route("/chat", methods=["POST", "OPTIONS"])
+def api_chat():
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+
+    user = _get_user_from_request()
+    if not user:
+        return jsonify({"error": "Login diperlukan untuk menggunakan chatbot"}), 401
+
+    data = request.json or {}
+    messages = data.get("messages", [])
+    if not isinstance(messages, list):
+        return jsonify({"error": "Format messages tidak valid"}), 400
+
+    reply, err = chatbot_controller.chat_completion(messages, user_name=user.nama)
+    if err:
+        return jsonify({"error": err}), 502 if chatbot_controller.is_configured() else 503
+
+    return jsonify({"reply": reply, "user": user.nama})
+
+
 @api_bp.route('/cart/clear', methods=['POST'])
 def api_cart_clear():
     """
     Endpoint: POST /api/cart/clear
     Logic: Checkout -> Kosongkan keranjang.
     """
-    keranjang_controller.kosongkan_keranjang()
-    return jsonify({'status': 'success'})
+    user = _get_user_from_request()
+    uid = user.id if user else None
+    keranjang_controller.kosongkan_keranjang(uid)
+    return jsonify({"status": "success"})
+
 
 def register_routes(app):
     app.register_blueprint(api_bp)
+
+    @app.after_request
+    def add_cors_headers(response):
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, OPTIONS"
+        return response

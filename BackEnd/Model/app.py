@@ -7,25 +7,41 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from flask import Flask
-from Database.database import db, Produk
+from Database.database import User, db, Produk
 from View.routes import register_routes
+from werkzeug.security import generate_password_hash
 
 def create_app():
     app = Flask(__name__)
     db_path = BACKEND_ROOT / "toko_sembako.db"
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path.as_posix()}"
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["SECRET_KEY"] = "sembako-dev-secret-change-in-production"
+
     db.init_app(app)
-    
     register_routes(app)
 
     with app.app_context():
         db.create_all()
         if Produk.query.count() == 0:
             seed_data()
-            
+        seed_demo_user()
+
     return app
+
+
+def seed_demo_user():
+    if User.query.filter_by(email="moreno@gmail.com").first():
+        return
+    demo = User(
+        nama="Moreno",
+        email="moreno@gmail.com",
+        password_hash=generate_password_hash("123456"),
+        telepon="+62 812-7891-6777",
+        foto="https://i.pravatar.cc/150?img=68",
+    )
+    db.session.add(demo)
+    db.session.commit()
 
 def seed_data():
     products_data = [

@@ -1,0 +1,6 @@
+BackEnd/config_9router.env
+BackEnd/config_ai.env
+BackEnd/toko_sembako.db
+BackEnd/**/__pycache__/
+*.pyc
+.env

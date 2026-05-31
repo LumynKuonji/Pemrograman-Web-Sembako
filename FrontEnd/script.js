@@ -42,6 +42,8 @@ const GUEST_PROFILE = {
     foto: "https://api.dicebear.com/7.x/initials/svg?seed=Guest&backgroundColor=7fb8b3"
 };
 
+const API_BASE = "http://127.0.0.1:5000/api";
+
 const DEMO_USERS = [
     { email: "moreno@gmail.com", password: "123456", nama: "Moreno", telepon: "+62 812-7891-6777", foto: "https://i.pravatar.cc/150?img=68" }
 ];
@@ -65,6 +67,35 @@ let userProfile = JSON.parse(localStorage.getItem("sembako_user")) || { ...DEMO_
 
 function isLoggedIn() {
     return !!(authSession && authSession.email);
+}
+
+function getAuthToken() {
+    return authSession?.token || null;
+}
+
+async function apiFetch(path, options = {}) {
+    const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+    const token = getAuthToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    try {
+        const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+        const data = await res.json().catch(() => ({}));
+        return { ok: res.ok, status: res.status, data };
+    } catch {
+        return { ok: false, status: 0, data: { error: "Server tidak dapat dihubungi. Pastikan Flask berjalan (python run.py)." } };
+    }
+}
+
+function setAuthSession(user, token) {
+    authSession = { email: user.email, token: token || null, userId: user.id, loggedInAt: Date.now() };
+    userProfile = { ...user, password: userProfile?.password };
+    localStorage.setItem("sembako_session", JSON.stringify(authSession));
+    localStorage.setItem("sembako_user", JSON.stringify(userProfile));
+    const idx = registeredUsers.findIndex(u => u.email === user.email);
+    const entry = { email: user.email, password: userProfile.password || "", nama: user.nama, telepon: user.telepon, foto: user.foto };
+    if (idx >= 0) registeredUsers[idx] = entry;
+    else registeredUsers.push(entry);
+    localStorage.setItem("sembako_users", JSON.stringify(registeredUsers));
 }
 
 function getActiveProfile() {
@@ -93,24 +124,73 @@ function goBackFromLogin() {
     window.location.href = ret || "index.html";
 }
 
-function handleLogin() {
+async function handleLogin() {
     const email = document.getElementById("loginEmail")?.value.trim().toLowerCase();
     const password = document.getElementById("loginPassword")?.value;
     if (!email || !password) return alert("Email dan password wajib diisi.");
+
+    const api = await apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+    });
+    if (api.ok && api.data.user) {
+        setAuthSession(api.data.user, api.data.token);
+        window.updateChatbotLock?.();
+        alert("Selamat datang, " + api.data.user.nama + "!");
+        window.location.href = getReturnUrl() || "index.html";
+        return;
+    }
+
     const user = registeredUsers.find(u => u.email.toLowerCase() === email && u.password === password);
-    if (!user) return alert("Email atau password salah.");
-    authSession = { email: user.email, loggedInAt: Date.now() };
-    userProfile = { ...user, password: user.password };
-    localStorage.setItem("sembako_session", JSON.stringify(authSession));
-    localStorage.setItem("sembako_user", JSON.stringify(userProfile));
-    alert("Selamat datang, " + user.nama + "!");
+    if (!user) return alert(api.data.error || "Email atau password salah.");
+    setAuthSession(user, null);
+    userProfile.password = user.password;
+    saveUserProfile();
+    window.updateChatbotLock?.();
+    alert("Selamat datang, " + user.nama + "! (mode offline)");
     window.location.href = getReturnUrl() || "index.html";
 }
 
-function doLogout() {
+async function handleRegister() {
+    const nama = document.getElementById("reg_nama")?.value.trim();
+    const email = document.getElementById("reg_email")?.value.trim().toLowerCase();
+    const telepon = document.getElementById("reg_telepon")?.value.trim();
+    const password = document.getElementById("reg_password")?.value;
+    const confirm = document.getElementById("reg_confirm")?.value;
+    if (!nama || !email || !password) return alert("Nama, email, dan password wajib diisi.");
+    if (password.length < 6) return alert("Password minimal 6 karakter.");
+    if (password !== confirm) return alert("Konfirmasi password tidak cocok.");
+
+    const api = await apiFetch("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ nama, email, password, telepon }),
+    });
+    if (!api.ok) {
+        if (registeredUsers.some(u => u.email === email)) return alert("Email sudah terdaftar (offline).");
+        return alert(api.data.error || "Registrasi gagal.");
+    }
+
+    const loginRes = await apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+    });
+    if (loginRes.ok && loginRes.data.user) {
+        setAuthSession(loginRes.data.user, loginRes.data.token);
+        alert("Registrasi berhasil! Selamat datang, " + loginRes.data.user.nama);
+        window.location.href = "index.html";
+        return;
+    }
+    alert("Registrasi berhasil. Silakan masuk.");
+    window.location.href = "login.html";
+}
+
+async function doLogout() {
     if (!confirm("Keluar dari akun?")) return;
+    const token = getAuthToken();
+    if (token) await apiFetch("/auth/logout", { method: "POST" });
     authSession = null;
     localStorage.removeItem("sembako_session");
+    window.updateChatbotLock?.();
     alert("Anda telah keluar. Mode tamu aktif.");
     window.location.href = "index.html";
 }
@@ -171,31 +251,104 @@ function renderCartRecommendations() {
         </div>`;
 }
 
-function initBottomNav() {
-    if (document.getElementById("bottomNav")) return;
-    const path = window.location.pathname;
-    const page = path.split("/").pop() || "index.html";
-    const isActive = (name) => page === name ? "active" : "";
-    const loginItem = isLoggedIn()
-        ? `<button class="bottom-nav-item" onclick="doLogout()"><span class="nav-icon">🚪</span><span>Logout</span></button>`
-        : `<a href="login.html" class="bottom-nav-item ${isActive("login.html")}"><span class="nav-icon">🔑</span><span>Login</span></a>`;
-    const nav = document.createElement("nav");
-    nav.id = "bottomNav";
-    nav.className = "bottom-nav";
-    nav.innerHTML = `
-        <a href="index.html" class="bottom-nav-item ${isActive("index.html")}"><span class="nav-icon">🏠</span><span>Beranda</span></a>
-        <a href="keranjang.html" class="bottom-nav-item ${isActive("keranjang.html")}"><span class="nav-icon">🛒</span><span>Keranjang</span></a>
-        <a href="profile.html" class="bottom-nav-item ${isActive("profile.html")}"><span class="nav-icon">👤</span><span>Profil</span></a>
-        ${loginItem}`;
-    document.body.appendChild(nav);
+function initHeaderAuth() {
+    const container = document.querySelector(".header-icons");
+    if (!container || document.getElementById("headerAuthBtn")) return;
+    if (isLoggedIn()) {
+        container.insertAdjacentHTML("beforeend",
+            `<button type="button" id="headerAuthBtn" class="header-auth-btn" onclick="doLogout()" title="Keluar">Keluar</button>`);
+    } else {
+        container.insertAdjacentHTML("beforeend",
+            `<a href="login.html" id="headerAuthBtn" class="header-auth-btn" title="Masuk">Masuk</a>`);
+    }
+}
+
+function initSiteFooter() {
+    if (document.getElementById("siteFooter")) return;
+    const year = new Date().getFullYear();
+    const authFooterLink = isLoggedIn()
+        ? `<button type="button" class="site-footer-link-btn" onclick="doLogout()">Keluar</button>`
+        : `<a href="login.html">Masuk</a>`;
+
+    const footer = document.createElement("footer");
+    footer.id = "siteFooter";
+    footer.className = "site-footer";
+    footer.innerHTML = `
+        <div class="site-footer-inner">
+            <div class="site-footer-grid">
+                <div class="site-footer-brand">
+                    <div class="site-footer-logo">TOKO SEMBAKO</div>
+                    <p>Belanja kebutuhan pokok harian dengan mudah. Browsing tanpa login, checkout setelah masuk akun.</p>
+                </div>
+                <div class="site-footer-col">
+                    <h4>Navigasi</h4>
+                    <ul>
+                        <li><a href="index.html">Beranda</a></li>
+                        <li><a href="keranjang.html">Keranjang</a></li>
+                        <li><a href="profile.html">Profil</a></li>
+                        <li><a href="riwayat.html">Riwayat Pesanan</a></li>
+                    </ul>
+                </div>
+                <div class="site-footer-col">
+                    <h4>Akun</h4>
+                    <ul>
+                        <li>${authFooterLink}</li>
+                        <li><a href="register.html">Daftar</a></li>
+                        <li><a href="login.html">Masuk</a></li>
+                    </ul>
+                </div>
+                <div class="site-footer-col">
+                    <h4>Bantuan</h4>
+                    <ul>
+                        <li><a href="index.html">Customer Service</a></li>
+                        <li><span>moreno@gmail.com</span></li>
+                        <li><span>+62 812-7891-6777</span></li>
+                        <li><span>Senin–Minggu, 08:00–20:00</span></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="site-footer-bottom">
+                <span>&copy; ${year} Toko Sembako. Semua hak dilindungi.</span>
+            </div>
+        </div>`;
+    document.body.appendChild(footer);
+}
+
+function initSiteChrome() {
+    initSiteFooter();
+    initHeaderAuth();
+    loadChatbotWidget();
+}
+
+function loadChatbotWidget() {
+    if (window.initChatbot) {
+        window.initChatbot();
+        return;
+    }
+    const existing = document.querySelector('script[data-chatbot="1"]');
+    if (existing) return;
+    const s = document.createElement("script");
+    s.src = "chatbot.js";
+    s.dataset.chatbot = "1";
+    s.onload = () => {
+        window.initChatbot?.();
+        window.updateChatbotLock?.();
+    };
+    document.body.appendChild(s);
 }
 
 function updateCartBadge() {
-    const badge = document.getElementById("cartBadge");
-    if (!badge) return;
     const count = cart.reduce((acc, item) => acc + item.qty, 0);
-    badge.innerText = count;
-    badge.classList.toggle("hidden", count === 0);
+    const badge = document.getElementById("cartBadge");
+    if (badge) {
+        badge.innerText = count;
+        badge.classList.toggle("hidden", count === 0);
+    }
+    const headerCount = document.getElementById("cartHeaderCount");
+    if (headerCount) {
+        headerCount.textContent = count === 0 ? "Keranjang kosong" : `${count} item di keranjang`;
+        headerCount.classList.toggle("has-items", count > 0);
+    }
 }
 
 function saveCart() {
@@ -336,7 +489,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const isRiwayat = window.location.pathname.includes("riwayat.html");
     const isLogin = window.location.pathname.includes("login.html");
 
-    initBottomNav();
+    initSiteChrome();
     updateCartBadge();
 
     if (isIndex) {
@@ -382,6 +535,20 @@ function removeItem(id) {
 
 function goDetail(id) { window.location.href = `detailproduk.html?id=${id}`; }
 
+function showCartToast(message) {
+    let toast = document.getElementById("cartToast");
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "cartToast";
+        toast.className = "cart-toast";
+        document.body.appendChild(toast);
+    }
+    toast.innerHTML = `<span class="cart-toast-icon">✓</span> ${message} masuk keranjang`;
+    toast.classList.add("show");
+    clearTimeout(showCartToast._timer);
+    showCartToast._timer = setTimeout(() => toast.classList.remove("show"), 2800);
+}
+
 function addToCart(id) {
     if (!requireLogin("Masuk dulu untuk menambah barang ke keranjang.")) return;
     const product = products.find(p => p.id === id);
@@ -390,7 +557,15 @@ function addToCart(id) {
     if (existing) existing.qty += 1;
     else cart.push({ id: product.id, nama: product.nama, harga: product.harga, img: product.img, qty: 1 });
     saveCart();
-    alert(`${product.nama} ditambahkan ke keranjang!`);
+    showCartToast(product.nama);
+
+    if (document.getElementById("cartList")) {
+        renderCartPage();
+        const cartList = document.getElementById("cartList");
+        cartList.classList.add("cart-list-updated");
+        setTimeout(() => cartList.classList.remove("cart-list-updated"), 700);
+        cartList.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
 }
 
 function renderOrderHistory() {

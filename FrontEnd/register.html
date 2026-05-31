@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daftar Akun - Toko Sembako</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-inner">
+            <button type="button" class="menu-btn btn-back" onclick="window.location.href='login.html'" aria-label="Kembali">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <div class="logo">LOGO</div>
+            <div class="header-icons">
+                <a href="index.html" class="header-auth-btn">Beranda</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container login-page">
+        <h1 class="page-title">Daftar Akun Baru</h1>
+        <p class="login-subtitle">Data disimpan di database (tabel <code>users</code>) saat server Flask aktif.</p>
+
+        <div class="login-card">
+            <label>Nama Lengkap</label>
+            <input type="text" id="reg_nama" placeholder="Nama Anda" autocomplete="name">
+
+            <label>Email</label>
+            <input type="email" id="reg_email" placeholder="email@contoh.com" autocomplete="email">
+
+            <label>No. Telepon (opsional)</label>
+            <input type="tel" id="reg_telepon" placeholder="+62 8xx-xxxx-xxxx">
+
+            <label>Password</label>
+            <input type="password" id="reg_password" placeholder="Minimal 6 karakter" autocomplete="new-password">
+
+            <label>Konfirmasi Password</label>
+            <input type="password" id="reg_confirm" placeholder="Ulangi password" autocomplete="new-password">
+
+            <button class="btn-primary login-btn" onclick="handleRegister()">Daftar Sekarang</button>
+
+            <p class="login-switch">Sudah punya akun? <a href="login.html">Masuk di sini</a></p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            if (isLoggedIn()) window.location.href = "index.html";
+        });
+    </script>
+</body>
+</html>

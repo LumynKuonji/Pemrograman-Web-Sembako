@@ -9,7 +9,9 @@
 <body>
     <header class="header">
         <div class="header-inner">
-            <button class="menu-btn" onclick="history.back()">← Kembali</button>
+            <button type="button" class="menu-btn btn-back" onclick="history.back()" aria-label="Kembali">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
             <div class="logo">LOGO</div>
             <div class="header-icons">
                 <button class="icon-btn cart-icon-btn" onclick="window.location.href='keranjang.html'">
