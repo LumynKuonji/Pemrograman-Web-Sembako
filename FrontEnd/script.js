@@ -43,6 +43,142 @@ const GUEST_PROFILE = {
 };
 
 const API_BASE = "http://127.0.0.1:5000/api";
+const API_LABEL = "Server Toko Sembako"; // label manusiawi pengganti alamat IP
+
+// =============================================
+// CUSTOM POPUP / DIALOG SYSTEM
+// Menggantikan alert() dan confirm() bawaan browser
+// =============================================
+
+function _buildPopupOverlay(content) {
+    const overlay = document.createElement("div");
+    overlay.className = "popup-overlay";
+    overlay.innerHTML = content;
+    document.body.appendChild(overlay);
+    // Tutup saat klik di luar box
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+    return overlay;
+}
+
+/**
+ * showPopup(options) — popup informasi/sukses/error/dll
+ * options: { type: 'success'|'error'|'info'|'warn', icon, title, message, btnText, onClose }
+ */
+function showPopup({ type = "info", icon, title, message, btnText = "Oke", onClose } = {}) {
+    const icons = { success: "✅", error: "❌", info: "ℹ️", warn: "⚠️", cart: "🛒", login: "👋" };
+    const displayIcon = icon || icons[type] || "ℹ️";
+    const overlay = _buildPopupOverlay(`
+        <div class="popup-box" role="dialog" aria-modal="true">
+            <div class="popup-icon-area">
+                <div class="popup-icon ${type}">${displayIcon}</div>
+            </div>
+            <div class="popup-body">
+                ${title ? `<div class="popup-title">${title}</div>` : ""}
+                ${message ? `<div class="popup-message">${message}</div>` : ""}
+            </div>
+            <div class="popup-actions">
+                <button class="popup-btn popup-btn-primary" id="popupOkBtn">${btnText}</button>
+            </div>
+        </div>
+    `);
+    const btn = overlay.querySelector("#popupOkBtn");
+    btn.focus();
+    btn.addEventListener("click", () => { overlay.remove(); onClose?.(); });
+    // Tutup dengan Escape
+    const escHandler = (e) => { if (e.key === "Escape") { overlay.remove(); onClose?.(); document.removeEventListener("keydown", escHandler); } };
+    document.addEventListener("keydown", escHandler);
+    return overlay;
+}
+
+/**
+ * showConfirm(options) — popup konfirmasi dengan dua tombol
+ * options: { type, icon, title, message, confirmText, cancelText, danger, onConfirm, onCancel }
+ */
+function showConfirm({ type = "warn", icon, title, message, confirmText = "Ya", cancelText = "Batal", danger = false, onConfirm, onCancel } = {}) {
+    const icons = { success: "✅", error: "❌", info: "ℹ️", warn: "❓", cart: "🗑️", login: "🔐" };
+    const displayIcon = icon || icons[type] || "❓";
+    const btnClass = danger ? "popup-btn-danger" : "popup-btn-primary";
+    const overlay = _buildPopupOverlay(`
+        <div class="popup-box" role="dialog" aria-modal="true">
+            <div class="popup-icon-area">
+                <div class="popup-icon ${type}">${displayIcon}</div>
+            </div>
+            <div class="popup-body">
+                ${title ? `<div class="popup-title">${title}</div>` : ""}
+                ${message ? `<div class="popup-message">${message}</div>` : ""}
+            </div>
+            <div class="popup-actions">
+                <button class="popup-btn popup-btn-secondary" id="popupCancelBtn">${cancelText}</button>
+                <button class="popup-btn ${btnClass}" id="popupConfirmBtn">${confirmText}</button>
+            </div>
+        </div>
+    `);
+    overlay.querySelector("#popupConfirmBtn").addEventListener("click", () => { overlay.remove(); onConfirm?.(); });
+    overlay.querySelector("#popupCancelBtn").addEventListener("click", () => { overlay.remove(); onCancel?.(); });
+    overlay.querySelector("#popupConfirmBtn").focus();
+    return overlay;
+}
+
+/**
+ * showCartPopup(product, qty) — popup khusus setelah tambah ke keranjang
+ */
+function showCartPopup(product, qty = 1) {
+    const cartCount = cart.reduce((acc, i) => acc + i.qty, 0);
+    const overlay = _buildPopupOverlay(`
+        <div class="popup-box" role="dialog" aria-modal="true">
+            <div class="popup-icon-area">
+                <div class="popup-icon cart">🛒</div>
+            </div>
+            <div class="popup-body">
+                <div class="popup-title">Berhasil Ditambahkan!</div>
+                <div class="popup-message">Produk sudah masuk ke keranjang kamu.</div>
+                <div class="popup-cart-detail">
+                    <div class="popup-cart-row">
+                        <img class="popup-cart-img" src="${product.img}" alt="${product.nama}" onerror="this.style.background='#e2e8f0'">
+                        <div class="popup-cart-info">
+                            <div class="popup-cart-name">${product.nama}</div>
+                            <div class="popup-cart-price">${formatRupiah(product.harga)}</div>
+                            <div class="popup-cart-qty">Jumlah di keranjang: <strong>${qty}</strong> pcs &nbsp;·&nbsp; Total item: <strong>${cartCount}</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="popup-actions">
+                <button class="popup-btn popup-btn-secondary" id="popupCartContinue">Lanjut Belanja</button>
+                <button class="popup-btn popup-btn-primary" id="popupCartView">Lihat Keranjang</button>
+            </div>
+        </div>
+    `);
+    overlay.querySelector("#popupCartContinue").addEventListener("click", () => overlay.remove());
+    overlay.querySelector("#popupCartView").addEventListener("click", () => { overlay.remove(); window.location.href = "keranjang.html"; });
+    // Auto-tutup setelah 5 detik
+    const autoClose = setTimeout(() => overlay.remove(), 5000);
+    overlay.addEventListener("click", () => clearTimeout(autoClose), { once: true });
+}
+
+/**
+ * showLoginPopup(nama, isOffline) — popup sambutan setelah login berhasil
+ */
+function showLoginPopup(nama, isOffline = false, onDone) {
+    const mode = isOffline ? "<span class='popup-badge'>Mode Offline 📶</span>" : "<span class='popup-badge'>✓ Terhubung ke server</span>";
+    const overlay = _buildPopupOverlay(`
+        <div class="popup-box" role="dialog" aria-modal="true">
+            <div class="popup-icon-area">
+                <div class="popup-icon login">👋</div>
+            </div>
+            <div class="popup-body">
+                <div class="popup-title">Selamat Datang!</div>
+                <div class="popup-welcome-name">${nama}</div>
+                <div class="popup-message">Senang melihatmu kembali di <strong>Toko Sembako</strong>. Yuk, mulai belanja!</div>
+                ${mode}
+            </div>
+            <div class="popup-actions">
+                <button class="popup-btn popup-btn-primary" id="popupLoginOk">Mulai Belanja 🛍️</button>
+            </div>
+        </div>
+    `);
+    overlay.querySelector("#popupLoginOk").addEventListener("click", () => { overlay.remove(); onDone?.(); });
+}
 
 const DEMO_USERS = [
     { email: "moreno@gmail.com", password: "123456", nama: "Moreno", telepon: "+62 812-7891-6777", foto: "https://i.pravatar.cc/150?img=68" }
@@ -104,13 +240,21 @@ function getActiveProfile() {
     return u ? { nama: u.nama, email: u.email, telepon: u.telepon, foto: u.foto } : { ...GUEST_PROFILE };
 }
 
-function requireLogin(message) {
+function requireLogin(message, onProceed) {
     if (isLoggedIn()) return true;
     const msg = message || "Silakan masuk terlebih dahulu untuk menggunakan fitur ini.";
-    if (confirm(msg + "\n\nKe halaman login?")) {
-        const returnTo = window.location.pathname.split("/").pop() + window.location.search;
-        window.location.href = "login.html?return=" + encodeURIComponent(returnTo);
-    }
+    showConfirm({
+        type: "login",
+        icon: "🔐",
+        title: "Login Diperlukan",
+        message: msg + "<br><br>Mau masuk ke halaman login sekarang?",
+        confirmText: "Ya, Masuk",
+        cancelText: "Nanti Saja",
+        onConfirm: () => {
+            const returnTo = window.location.pathname.split("/").pop() + window.location.search;
+            window.location.href = "login.html?return=" + encodeURIComponent(returnTo);
+        }
+    });
     return false;
 }
 
@@ -127,7 +271,10 @@ function goBackFromLogin() {
 async function handleLogin() {
     const email = document.getElementById("loginEmail")?.value.trim().toLowerCase();
     const password = document.getElementById("loginPassword")?.value;
-    if (!email || !password) return alert("Email dan password wajib diisi.");
+    if (!email || !password) {
+        showPopup({ type: "warn", icon: "⚠️", title: "Isian Belum Lengkap", message: "Email dan password wajib diisi sebelum masuk." });
+        return;
+    }
 
     const api = await apiFetch("/auth/login", {
         method: "POST",
@@ -136,19 +283,24 @@ async function handleLogin() {
     if (api.ok && api.data.user) {
         setAuthSession(api.data.user, api.data.token);
         window.updateChatbotLock?.();
-        alert("Selamat datang, " + api.data.user.nama + "!");
-        window.location.href = getReturnUrl() || "index.html";
+        showLoginPopup(api.data.user.nama, false, () => {
+            window.location.href = getReturnUrl() || "index.html";
+        });
         return;
     }
 
     const user = registeredUsers.find(u => u.email.toLowerCase() === email && u.password === password);
-    if (!user) return alert(api.data.error || "Email atau password salah.");
+    if (!user) {
+        showPopup({ type: "error", icon: "❌", title: "Login Gagal", message: api.data.error || "Email atau password yang kamu masukkan salah. Coba lagi ya!" });
+        return;
+    }
     setAuthSession(user, null);
     userProfile.password = user.password;
     saveUserProfile();
     window.updateChatbotLock?.();
-    alert("Selamat datang, " + user.nama + "! (mode offline)");
-    window.location.href = getReturnUrl() || "index.html";
+    showLoginPopup(user.nama, true, () => {
+        window.location.href = getReturnUrl() || "index.html";
+    });
 }
 
 async function handleRegister() {
@@ -156,18 +308,31 @@ async function handleRegister() {
     const email = document.getElementById("reg_email")?.value.trim().toLowerCase();
     const telepon = document.getElementById("reg_telepon")?.value.trim();
     const password = document.getElementById("reg_password")?.value;
-    const confirm = document.getElementById("reg_confirm")?.value;
-    if (!nama || !email || !password) return alert("Nama, email, dan password wajib diisi.");
-    if (password.length < 6) return alert("Password minimal 6 karakter.");
-    if (password !== confirm) return alert("Konfirmasi password tidak cocok.");
+    const confirmVal = document.getElementById("reg_confirm")?.value;
+    if (!nama || !email || !password) {
+        showPopup({ type: "warn", icon: "⚠️", title: "Isian Belum Lengkap", message: "Nama, email, dan password wajib diisi." });
+        return;
+    }
+    if (password.length < 6) {
+        showPopup({ type: "warn", icon: "⚠️", title: "Password Terlalu Pendek", message: "Password minimal 6 karakter ya." });
+        return;
+    }
+    if (password !== confirmVal) {
+        showPopup({ type: "error", icon: "❌", title: "Password Tidak Cocok", message: "Konfirmasi password tidak sesuai. Silakan coba lagi." });
+        return;
+    }
 
     const api = await apiFetch("/auth/register", {
         method: "POST",
         body: JSON.stringify({ nama, email, password, telepon }),
     });
     if (!api.ok) {
-        if (registeredUsers.some(u => u.email === email)) return alert("Email sudah terdaftar (offline).");
-        return alert(api.data.error || "Registrasi gagal.");
+        if (registeredUsers.some(u => u.email === email)) {
+            showPopup({ type: "error", icon: "❌", title: "Email Sudah Terdaftar", message: "Email ini sudah dipakai. Coba masuk atau gunakan email lain." });
+            return;
+        }
+        showPopup({ type: "error", icon: "❌", title: "Registrasi Gagal", message: api.data.error || "Terjadi kesalahan saat mendaftar. Coba lagi nanti." });
+        return;
     }
 
     const loginRes = await apiFetch("/auth/login", {
@@ -176,23 +341,36 @@ async function handleRegister() {
     });
     if (loginRes.ok && loginRes.data.user) {
         setAuthSession(loginRes.data.user, loginRes.data.token);
-        alert("Registrasi berhasil! Selamat datang, " + loginRes.data.user.nama);
-        window.location.href = "index.html";
+        showLoginPopup(loginRes.data.user.nama, false, () => {
+            window.location.href = "index.html";
+        });
         return;
     }
-    alert("Registrasi berhasil. Silakan masuk.");
-    window.location.href = "login.html";
+    showPopup({ type: "success", icon: "🎉", title: "Registrasi Berhasil!", message: "Akun kamu sudah dibuat. Silakan masuk untuk mulai belanja.", onClose: () => { window.location.href = "login.html"; } });
 }
 
 async function doLogout() {
-    if (!confirm("Keluar dari akun?")) return;
-    const token = getAuthToken();
-    if (token) await apiFetch("/auth/logout", { method: "POST" });
-    authSession = null;
-    localStorage.removeItem("sembako_session");
-    window.updateChatbotLock?.();
-    alert("Anda telah keluar. Mode tamu aktif.");
-    window.location.href = "index.html";
+    showConfirm({
+        type: "warn",
+        icon: "🚪",
+        title: "Keluar dari Akun?",
+        message: "Kamu akan keluar dan masuk ke mode tamu. Keranjang belanja tetap tersimpan.",
+        confirmText: "Ya, Keluar",
+        cancelText: "Batal",
+        danger: false,
+        onConfirm: async () => {
+            const token = getAuthToken();
+            if (token) await apiFetch("/auth/logout", { method: "POST" });
+            authSession = null;
+            localStorage.removeItem("sembako_session");
+            window.updateChatbotLock?.();
+            showPopup({
+                type: "info", icon: "👋", title: "Sampai Jumpa!",
+                message: "Kamu telah keluar. Mode tamu aktif — kamu tetap bisa browsing produk.",
+                onClose: () => { window.location.href = "index.html"; }
+            });
+        }
+    });
 }
 
 function formatRupiah(angka) {
@@ -526,16 +704,26 @@ function updateQty(id, change) {
 
 function removeItem(id) {
     if (!requireLogin("Masuk dulu untuk mengubah keranjang.")) return;
-    if (confirm("Hapus barang ini dari keranjang?")) {
-        cart = cart.filter(item => item.id !== id);
-        saveCart();
-        renderCartPage();
-    }
+    const item = cart.find(i => i.id === id);
+    showConfirm({
+        type: "cart",
+        icon: "🗑️",
+        title: "Hapus dari Keranjang?",
+        message: `<strong>${item?.nama || "Barang ini"}</strong> akan dihapus dari keranjang kamu.`,
+        confirmText: "Ya, Hapus",
+        cancelText: "Batal",
+        danger: true,
+        onConfirm: () => {
+            cart = cart.filter(i => i.id !== id);
+            saveCart();
+            renderCartPage();
+        }
+    });
 }
 
 function goDetail(id) { window.location.href = `detailproduk.html?id=${id}`; }
 
-function showCartToast(message) {
+function showCartToast(productName) {
     let toast = document.getElementById("cartToast");
     if (!toast) {
         toast = document.createElement("div");
@@ -543,10 +731,10 @@ function showCartToast(message) {
         toast.className = "cart-toast";
         document.body.appendChild(toast);
     }
-    toast.innerHTML = `<span class="cart-toast-icon">✓</span> ${message} masuk keranjang`;
+    toast.innerHTML = `<span class="cart-toast-icon">✓</span> <span>${productName} ditambahkan!</span>`;
     toast.classList.add("show");
     clearTimeout(showCartToast._timer);
-    showCartToast._timer = setTimeout(() => toast.classList.remove("show"), 2800);
+    showCartToast._timer = setTimeout(() => toast.classList.remove("show"), 3000);
 }
 
 function addToCart(id) {
@@ -557,7 +745,10 @@ function addToCart(id) {
     if (existing) existing.qty += 1;
     else cart.push({ id: product.id, nama: product.nama, harga: product.harga, img: product.img, qty: 1 });
     saveCart();
-    showCartToast(product.nama);
+
+    // Tampilkan popup kartun yang cantik (bukan alert bawaan browser)
+    const cartItem = cart.find(i => i.id === id);
+    showCartPopup(product, cartItem?.qty || 1);
 
     if (document.getElementById("cartList")) {
         renderCartPage();
@@ -659,7 +850,7 @@ function saveAddressFromForm() {
     };
 
     if (!newAddress.alamatLengkap || !newAddress.kota || !newAddress.kodePos) {
-        alert("Mohon isi Alamat Lengkap, Kota, dan Kode Pos!");
+        showPopup({ type: "warn", icon: "📍", title: "Data Belum Lengkap", message: "Mohon isi Alamat Lengkap, Kota, dan Kode Pos terlebih dahulu." });
         return;
     }
 
@@ -667,7 +858,7 @@ function saveAddressFromForm() {
     saveAddress();
     renderAddressDisplay();
     closeAddressModal();
-    alert("✅ Alamat pengiriman berhasil diperbarui!");
+    showPopup({ type: "success", icon: "📍", title: "Alamat Diperbarui!", message: `Alamat pengiriman ke <strong>${newAddress.kota}</strong> berhasil disimpan.` });
 }
 
 function renderUserProfile() {
@@ -715,7 +906,7 @@ function saveAccountSettings() {
     const newFoto = document.getElementById("previewFoto").src;
 
     if (!newNama || !newEmail) {
-        alert("Nama dan Email tidak boleh kosong!");
+        showPopup({ type: "warn", icon: "⚠️", title: "Data Tidak Lengkap", message: "Nama dan Email tidak boleh kosong." });
         return;
     }
 
@@ -734,7 +925,7 @@ function saveAccountSettings() {
     saveUserProfile();
     renderUserProfile();
     closeAccountModal();
-    alert("✅ Data akun berhasil diperbarui!");
+    showPopup({ type: "success", icon: "👤", title: "Akun Diperbarui!", message: `Data akun <strong>${newNama}</strong> berhasil disimpan.` });
 }
 
 function changePassword() {
@@ -742,16 +933,25 @@ function changePassword() {
     const newPass = document.getElementById("new_password").value;
     const confirmPass = document.getElementById("confirm_password").value;
 
-    if (currentPass !== userProfile.password) return alert("❌ Password saat ini salah!");
-    if (newPass.length < 6) return alert("Password baru minimal 6 karakter!");
-    if (newPass !== confirmPass) return alert("❌ Password baru dan konfirmasi tidak cocok!");
+    if (currentPass !== userProfile.password) {
+        showPopup({ type: "error", icon: "❌", title: "Password Salah", message: "Password saat ini yang kamu masukkan tidak sesuai." });
+        return;
+    }
+    if (newPass.length < 6) {
+        showPopup({ type: "warn", icon: "⚠️", title: "Password Terlalu Pendek", message: "Password baru minimal 6 karakter." });
+        return;
+    }
+    if (newPass !== confirmPass) {
+        showPopup({ type: "error", icon: "❌", title: "Password Tidak Cocok", message: "Password baru dan konfirmasi tidak sesuai." });
+        return;
+    }
 
     userProfile.password = newPass;
     saveUserProfile();
     document.getElementById("current_password").value = "";
     document.getElementById("new_password").value = "";
     document.getElementById("confirm_password").value = "";
-    alert("✅ Password berhasil diubah!");
+    showPopup({ type: "success", icon: "🔒", title: "Password Diperbarui!", message: "Password kamu berhasil diganti. Jaga kerahasiaannya ya!" });
 }
 
 function closeAccountModal() {
@@ -846,8 +1046,15 @@ function confirmPayment() {
     saveCart();
 
     closePaymentModal();
-    alert(`✅ Pembayaran berhasil!\nNomor Pesanan: ${newOrder.id}\nMetode: ${selectedPaymentMethod}`);
-    window.location.href = 'riwayat.html';
+    const methodLabels = { COD: "Cash on Delivery", BCA: "Transfer BCA", MANDIRI: "Transfer Mandiri", DANA: "DANA", GOPAY: "GoPay" };
+    showPopup({
+        type: "success",
+        icon: "🎉",
+        title: "Pesanan Berhasil!",
+        message: `Nomor pesanan kamu: <strong>${newOrder.id}</strong><br>Metode: <strong>${methodLabels[selectedPaymentMethod] || selectedPaymentMethod}</strong><br>Total: <strong>${formatRupiah(total)}</strong><br><br>Pesananmu sedang kami proses. Terima kasih sudah belanja! 🛍️`,
+        btnText: "Lihat Riwayat",
+        onClose: () => { window.location.href = 'riwayat.html'; }
+    });
 }
 
 function showOrderDetail(orderId) {
@@ -895,6 +1102,12 @@ function buyAgain(orderId) {
 
     cart = order.items.map(item => ({...item}));
     saveCart();
-    alert("✅ Barang telah dimasukkan ke keranjang!");
-    window.location.href = 'keranjang.html';
+    showPopup({
+        type: "cart",
+        icon: "🛒",
+        title: "Keranjang Diisi Ulang!",
+        message: `${order.items.length} produk dari pesanan <strong>${order.id}</strong> sudah masuk ke keranjang.`,
+        btnText: "Lihat Keranjang",
+        onClose: () => { window.location.href = 'keranjang.html'; }
+    });
 }
