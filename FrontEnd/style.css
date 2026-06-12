@@ -1261,13 +1261,15 @@ button {
     font-size: 14px;
 }
 
-.payment-methods {
+.payment-methods,
+.shipping-methods {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
 
-.payment-option {
+.payment-option,
+.shipping-option {
     padding: 12px 16px;
     border: 2px solid #e5e7eb;
     border-radius: 10px;
@@ -1278,11 +1280,34 @@ button {
     gap: 12px;
 }
 
-.payment-option:hover {
+.shipping-option {
+    justify-content: space-between;
+}
+
+.shipping-option div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.shipping-option small {
+    color: var(--text-light);
+    font-size: 13px;
+}
+
+.shipping-option span {
+    font-weight: 800;
+    color: var(--primary-dark);
+    white-space: nowrap;
+}
+
+.payment-option:hover,
+.shipping-option:hover {
     border-color: var(--primary);
 }
 
-.payment-option.selected {
+.payment-option.selected,
+.shipping-option.selected {
     border-color: var(--primary);
     background: #f0f9f7;
 }
@@ -1294,10 +1319,22 @@ button {
     margin-top: 10px;
 }
 
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    color: var(--text-light);
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
 .total-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 12px;
+    margin-top: 12px;
     font-size: 18px;
     font-weight: 700;
 }

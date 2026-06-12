@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from Database.database import User, UserSession, db
+from BackEnd.Database.database import User, UserSession, db
 
 
 def register_user(nama, email, password, telepon=None, foto=None):

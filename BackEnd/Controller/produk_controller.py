@@ -1,4 +1,4 @@
-from Database.database import Produk, db
+from BackEnd.Database.database import Produk
 
 def get_semua_produk():
     return Produk.query.all()

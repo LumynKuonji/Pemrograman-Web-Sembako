@@ -1,6 +1,13 @@
 from flask import Blueprint, jsonify, request
-from Controller import auth_controller, chatbot_controller, keranjang_controller, mba_controller, produk_controller
-from Database.database import Produk, db
+from BackEnd.Controller import (
+    auth_controller,
+    chatbot_controller,
+    keranjang_controller,
+    mba_controller,
+    pesanan_controller,
+    produk_controller,
+)
+from BackEnd.Database.database import PesananItem, Produk
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -203,6 +210,59 @@ def api_cart_clear():
     uid = user.id if user else None
     keranjang_controller.kosongkan_keranjang(uid)
     return jsonify({"status": "success"})
+
+
+@api_bp.route("/orders", methods=["GET", "OPTIONS"])
+def api_orders():
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    user = _get_user_from_request()
+    if not user:
+        return jsonify({"error": "Belum login"}), 401
+
+    data = []
+    for order in pesanan_controller.get_pesanan_user(user.id):
+        items = PesananItem.query.filter_by(pesanan_id=order.id).all()
+        data.append({
+            "id": order.kode_pesanan,
+            "tanggal": order.created_at.isoformat(),
+            "total": order.total_harga,
+            "status": order.status,
+            "paymentMethod": order.metode_bayar,
+            "items": [
+                {
+                    "produk_id": item.produk_id,
+                    "nama": item.nama_produk,
+                    "harga": item.harga,
+                    "qty": item.qty,
+                }
+                for item in items
+            ],
+        })
+    return jsonify({"orders": data})
+
+
+@api_bp.route("/orders/checkout", methods=["POST", "OPTIONS"])
+def api_checkout():
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    user = _get_user_from_request()
+    if not user:
+        return jsonify({"error": "Login diperlukan untuk checkout"}), 401
+
+    order, err = pesanan_controller.buat_pesanan_dari_keranjang(user.id, request.json or {})
+    if err:
+        return jsonify({"error": err}), 400
+
+    return jsonify({
+        "status": "success",
+        "order": {
+            "id": order.kode_pesanan,
+            "total": order.total_harga,
+            "status": order.status,
+            "paymentMethod": order.metode_bayar,
+        },
+    }), 201
 
 
 def register_routes(app):
