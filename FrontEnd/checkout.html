@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout - Sembako</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="sweetalert-custom.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-inner">
+            <button type="button" class="menu-btn btn-back" onclick="window.location.href='keranjang.html'" aria-label="Kembali">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <div class="logo">LOGO</div>
+            <div class="header-spacer"></div>
+            <div class="header-icons"></div>
+        </div>
+    </header>
+
+    <div class="container checkout-page">
+        <h1 class="page-title">Checkout</h1>
+        
+        <div class="checkout-layout">
+            <div class="checkout-main">
+                <div class="checkout-section">
+                    <h3>Ringkasan Pesanan</h3>
+                    <div id="orderItems"></div>
+                </div>
+
+                <div class="checkout-section">
+                    <h3>Alamat Pengiriman</h3>
+                    <div id="paymentAddress" class="address-box"></div>
+                </div>
+
+                <div class="checkout-section">
+                    <h3>Pilih Metode Pengiriman</h3>
+                    <div class="shipping-methods" id="shippingMethods"></div>
+                </div>
+
+                <div class="checkout-section">
+                    <h3>Pilih Metode Pembayaran</h3>
+                    <div class="payment-methods" id="paymentMethods"></div>
+                </div>
+            </div>
+
+            <div class="checkout-summary">
+                <h3>Ringkasan Pembayaran</h3>
+                <div class="total-section" style="margin-bottom: 20px;">
+                    <div class="summary-row" style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 13px; color: var(--text-light);">
+                        <span>Subtotal Barang</span>
+                        <span id="modalSubtotal">Rp 0</span>
+                    </div>
+                    <div class="summary-row" style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 13px; color: var(--text-light);">
+                        <span>Ongkos Kirim</span>
+                        <span id="modalShippingCost">Rp 0</span>
+                    </div>
+                    <div class="total-row" style="display: flex; justify-content: space-between; border-top: 1px solid #f1f5f9; padding-top: 14px; margin-top: 12px; font-weight: 500; font-size: 14.5px; color: var(--text);">
+                        <span>Total Pembayaran</span>
+                        <span id="modalTotal" class="total-amount" style="color: var(--primary-dark); font-weight: 600; font-size: 14.5px !important;">Rp 0</span>
+                    </div>
+                </div>
+                <button class="btn-primary pay-btn" onclick="confirmPayment()">Bayar Sekarang</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="sweetalert-custom.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,283 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+/* =============================================
+   GLOBAL FONT OVERRIDE FOR THE ENTIRE WEBSITE
+   ============================================= */
+body, input, button, select, textarea, .swal2-container {
+    font-family: 'Poppins', 'Inter', system-ui, -apple-system, sans-serif !important;
+}
+
+/* =============================================
+   CUSTOM STYLE VARIABLES FOR SWEETALERT2
+   ============================================= */
+:root {
+    --swal-radius: 15px;
+    --swal-btn-radius: 10px;
+    
+    /* Palette & Shadows */
+    --swal-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 10px 10px -5px rgba(15, 23, 42, 0.04);
+    --swal-toast-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+    
+    /* Button Colors */
+    --swal-primary-gradient: linear-gradient(135deg, #7fb8b3 0%, #5a8f8a 100%);
+    --swal-primary-hover: linear-gradient(135deg, #6fa8a3 0%, #4a7f7a 100%);
+    --swal-primary-shadow: rgba(90, 143, 138, 0.3);
+    
+    --swal-danger-gradient: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+    --swal-danger-hover: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+    --swal-danger-shadow: rgba(225, 29, 72, 0.3);
+    
+    --swal-cancel-bg: #f1f5f9;
+    --swal-cancel-hover: #e2e8f0;
+    --swal-cancel-text: #475569;
+}
+
+/* =============================================
+   SWEETALERT2 DIALOG BOX OVERRIDES
+   ============================================= */
+/* Base Modal Container */
+.custom-swal-popup {
+    border-radius: var(--swal-radius) !important;
+    padding: 30px 24px !important;
+    box-shadow: var(--swal-shadow) !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+    background: #ffffff !important;
+    width: 380px !important;
+    max-width: 90% !important;
+    overflow: hidden !important; /* Clips the timer progress bar to the rounded corners */
+}
+
+/* Custom styling for standard dialog timer progress bar */
+.custom-swal-popup .swal2-timer-progress-bar {
+    background: var(--swal-primary-gradient) !important;
+    opacity: 0.4 !important;
+    height: 4px !important;
+}
+
+/* Custom Entry & Exit Animations */
+.animate-custom-show {
+    animation: swal2-zoom-fade-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+}
+.animate-custom-hide {
+    animation: swal2-zoom-fade-out 0.2s cubic-bezier(0.4, 0, 1, 1) forwards !important;
+}
+
+@keyframes swal2-zoom-fade-in {
+    0% {
+        transform: scale(0.85);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+@keyframes swal2-zoom-fade-out {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+}
+
+/* Title Override */
+.custom-swal-title {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: #1f2937 !important;
+    margin-top: 8px !important;
+    margin-bottom: 8px !important;
+    padding: 0 !important;
+}
+
+/* Message Content Override */
+.custom-swal-html {
+    font-size: 14px !important;
+    color: #6b7280 !important;
+    line-height: 1.6 !important;
+    margin: 8px 0 0 !important;
+    padding: 0 !important;
+}
+
+.custom-swal-html strong {
+    color: #1f2937 !important;
+    font-weight: 600;
+}
+
+/* =============================================
+   NATIVE SWEETALERT2 BUTTON OVERRIDES (TIDY OUTLINE)
+   ============================================= */
+.swal2-popup .swal2-actions {
+    margin-top: 24px !important;
+    gap: 12px !important;
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+}
+
+/* Confirm Button Override */
+.swal2-popup .swal2-styled.swal2-confirm {
+    flex: 1 !important;
+    margin: 0 !important;
+    background: var(--swal-primary-gradient) !important;
+    color: #ffffff !important;
+    border-radius: var(--swal-btn-radius) !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    padding: 12px 20px !important;
+    box-shadow: 0 4px 14px var(--swal-primary-shadow) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border: none !important;
+    outline: none !important;
+    cursor: pointer !important;
+}
+
+.swal2-popup .swal2-styled.swal2-confirm:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px var(--swal-primary-shadow) !important;
+    background: var(--swal-primary-hover) !important;
+}
+
+/* Danger Confirm Button Override */
+.swal2-popup .custom-swal-danger-confirm {
+    background: var(--swal-danger-gradient) !important;
+    box-shadow: 0 4px 14px var(--swal-danger-shadow) !important;
+}
+
+.swal2-popup .custom-swal-danger-confirm:hover {
+    background: var(--swal-danger-hover) !important;
+    box-shadow: 0 6px 20px var(--swal-danger-shadow) !important;
+}
+
+/* Cancel Button Override */
+.swal2-popup .swal2-styled.swal2-cancel {
+    flex: 1 !important;
+    margin: 0 !important;
+    background: var(--swal-cancel-bg) !important;
+    color: var(--swal-cancel-text) !important;
+    border-radius: var(--swal-btn-radius) !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    padding: 12px 20px !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border: none !important;
+    outline: none !important;
+    cursor: pointer !important;
+}
+
+.swal2-popup .swal2-styled.swal2-cancel:hover {
+    background: var(--swal-cancel-hover) !important;
+    color: #1e293b !important;
+    transform: translateY(-2px) !important;
+}
+
+/* Close button x styling */
+.custom-swal-close-btn {
+    border-radius: 50% !important;
+    color: #9ca3af !important;
+    transition: all 0.2s !important;
+    outline: none !important;
+}
+.custom-swal-close-btn:hover {
+    background-color: #f1f5f9 !important;
+    color: #4b5563 !important;
+}
+
+/* =============================================
+   SaaS MODERN TOAST NOTIFICATION STYLING (WHITE BACKGROUND)
+   ============================================= */
+.custom-swal-toast {
+    border-radius: 10px !important;
+    background: #ffffff !important; /* Clean white background */
+    color: #1f2937 !important;     /* Dark slate text */
+    box-shadow: var(--swal-toast-shadow) !important;
+    padding: 10px 16px !important;
+    border: 1px solid #e2e8f0 !important; /* Soft border */
+    width: 270px !important;
+    min-height: 46px !important;
+    overflow: hidden !important; /* Clips the timer progress bar to the rounded corners */
+}
+
+.custom-swal-toast-title {
+    font-weight: 500 !important;
+    font-size: 13px !important;
+    color: #1f2937 !important;
+    margin: 0 !important;
+}
+
+.custom-swal-toast .swal2-timer-progress-bar {
+    background: var(--swal-primary-gradient) !important;
+    opacity: 0.4 !important;
+    height: 3px !important;
+}
+
+/* =============================================
+   CUSTOM SWEETALERT2 ICON OVERRIDES (THEME ALIGNED)
+   ============================================= */
+.swal2-icon.swal2-success {
+    border-color: #5a8f8a !important;
+    color: #5a8f8a !important;
+}
+.swal2-icon.swal2-success [class^='swal2-success-line'] {
+    background-color: #5a8f8a !important;
+}
+.swal2-icon.swal2-success .swal2-success-ring {
+    border: 4px solid rgba(90, 143, 138, 0.3) !important;
+}
+
+.swal2-icon.swal2-error {
+    border-color: #e11d48 !important;
+    color: #e11d48 !important;
+}
+.swal2-icon.swal2-error [class^='swal2-error-line'] {
+    background-color: #e11d48 !important;
+}
+
+.swal2-icon.swal2-warning {
+    border-color: #f59e0b !important;
+    color: #f59e0b !important;
+}
+.swal2-icon.swal2-warning .swal2-icon-content {
+    color: #f59e0b !important;
+}
+
+.swal2-icon.swal2-info {
+    border-color: #3b82f6 !important;
+    color: #3b82f6 !important;
+}
+.swal2-icon.swal2-info .swal2-icon-content {
+    color: #3b82f6 !important;
+}
+
+/* Toast Premium CSS Animations */
+.animate-toast-show {
+    animation: toast-slide-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+}
+.animate-toast-hide {
+    animation: toast-slide-out 0.25s cubic-bezier(0.4, 0, 1, 1) forwards !important;
+}
+
+@keyframes toast-slide-in {
+    0% {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes toast-slide-out {
+    0% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+}

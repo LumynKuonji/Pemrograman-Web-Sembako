@@ -69,28 +69,7 @@ function getPopupIcon(type = "info", danger = false) {
  * options: { type: 'success'|'error'|'info'|'warn', title, message, btnText, onClose }
  */
 function showPopup({ type = "info", title, message, btnText = "Oke", onClose } = {}) {
-    const displayIcon = getPopupIcon(type);
-    const overlay = _buildPopupOverlay(`
-        <div class="popup-box" role="dialog" aria-modal="true">
-            <div class="popup-icon-area">
-                <div class="popup-icon ${type}">${displayIcon}</div>
-            </div>
-            <div class="popup-body">
-                ${title ? `<div class="popup-title">${title}</div>` : ""}
-                ${message ? `<div class="popup-message">${message}</div>` : ""}
-            </div>
-            <div class="popup-actions">
-                <button class="popup-btn popup-btn-primary" id="popupOkBtn">${btnText}</button>
-            </div>
-        </div>
-    `);
-    const btn = overlay.querySelector("#popupOkBtn");
-    btn.focus();
-    btn.addEventListener("click", () => { overlay.remove(); onClose?.(); });
-    // Tutup dengan Escape
-    const escHandler = (e) => { if (e.key === "Escape") { overlay.remove(); onClose?.(); document.removeEventListener("keydown", escHandler); } };
-    document.addEventListener("keydown", escHandler);
-    return overlay;
+    return AppAlert.show({ type, title, message, btnText, onClose });
 }
 
 /**
@@ -98,28 +77,7 @@ function showPopup({ type = "info", title, message, btnText = "Oke", onClose } =
  * options: { type, title, message, confirmText, cancelText, danger, onConfirm, onCancel }
  */
 function showConfirm({ type = "warn", title, message, confirmText = "Ya", cancelText = "Batal", danger = false, onConfirm, onCancel } = {}) {
-    const displayIcon = getPopupIcon(type, true);
-    const iconType = displayIcon === "×" ? "error" : type;
-    const btnClass = danger ? "popup-btn-danger" : "popup-btn-primary";
-    const overlay = _buildPopupOverlay(`
-        <div class="popup-box" role="dialog" aria-modal="true">
-            <div class="popup-icon-area">
-                <div class="popup-icon ${iconType}">${displayIcon}</div>
-            </div>
-            <div class="popup-body">
-                ${title ? `<div class="popup-title">${title}</div>` : ""}
-                ${message ? `<div class="popup-message">${message}</div>` : ""}
-            </div>
-            <div class="popup-actions">
-                <button class="popup-btn popup-btn-secondary" id="popupCancelBtn">${cancelText}</button>
-                <button class="popup-btn ${btnClass}" id="popupConfirmBtn">${confirmText}</button>
-            </div>
-        </div>
-    `);
-    overlay.querySelector("#popupConfirmBtn").addEventListener("click", () => { overlay.remove(); onConfirm?.(); });
-    overlay.querySelector("#popupCancelBtn").addEventListener("click", () => { overlay.remove(); onCancel?.(); });
-    overlay.querySelector("#popupConfirmBtn").focus();
-    return overlay;
+    return AppAlert.confirm({ type, title, message, confirmText, cancelText, danger, onConfirm, onCancel });
 }
 
 /**
@@ -127,60 +85,45 @@ function showConfirm({ type = "warn", title, message, confirmText = "Ya", cancel
  */
 function showCartPopup(product, qty = 1) {
     const cartCount = cart.reduce((acc, i) => acc + i.qty, 0);
-    const overlay = _buildPopupOverlay(`
-        <div class="popup-box" role="dialog" aria-modal="true">
-            <div class="popup-icon-area">
-                <div class="popup-icon cart">✓</div>
-            </div>
-            <div class="popup-body">
-                <div class="popup-title">Berhasil Ditambahkan!</div>
-                <div class="popup-message">Produk sudah masuk ke keranjang kamu.</div>
-                <div class="popup-cart-detail">
-                    <div class="popup-cart-row">
-                        <img class="popup-cart-img" src="${product.img}" alt="${product.nama}" onerror="this.style.background='#e2e8f0'">
-                        <div class="popup-cart-info">
-                            <div class="popup-cart-name">${product.nama}</div>
-                            <div class="popup-cart-price">${formatRupiah(product.harga)}</div>
-                            <div class="popup-cart-qty">Jumlah di keranjang: <strong>${qty}</strong> pcs &nbsp;·&nbsp; Total item: <strong>${cartCount}</strong></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="popup-actions">
-                <button class="popup-btn popup-btn-secondary" id="popupCartContinue">Lanjut Belanja</button>
-                <button class="popup-btn popup-btn-primary" id="popupCartView">Lihat Keranjang</button>
-            </div>
-        </div>
-    `);
-    overlay.querySelector("#popupCartContinue").addEventListener("click", () => overlay.remove());
-    overlay.querySelector("#popupCartView").addEventListener("click", () => { overlay.remove(); window.location.href = "keranjang.html"; });
-    // Auto-tutup setelah 5 detik
-    const autoClose = setTimeout(() => overlay.remove(), 5000);
-    overlay.addEventListener("click", () => clearTimeout(autoClose), { once: true });
+
+    // Trigger modern toast notification (no icon, white background)
+    AppAlert.toast(`Produk dimasukkan ke keranjang (Total item: ${cartCount})`, "top-end", 3000);
+
+    return Swal.fire({
+        title: 'Berhasil Ditambahkan!',
+        html: `<strong>${product.nama}</strong> (${qty} pcs) telah dimasukkan ke keranjang.`,
+        showCancelButton: true,
+        confirmButtonText: 'Lihat Keranjang',
+        cancelButtonText: 'Lanjut Belanja',
+        timer: 4000,
+        timerProgressBar: true,
+        scrollbarPadding: false,
+        showClass: {
+            popup: 'animate-custom-show'
+        },
+        hideClass: {
+            popup: 'animate-custom-hide'
+        },
+        customClass: {
+            popup: 'custom-swal-popup',
+            title: 'custom-swal-title',
+            htmlContainer: 'custom-swal-html'
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = "keranjang.html";
+        }
+    });
 }
 
 /**
  * showLoginPopup(nama, isOffline) — popup sambutan setelah login berhasil
  */
 function showLoginPopup(nama, isOffline = false, onDone) {
-    const mode = isOffline ? "<span class='popup-badge'>Mode Offline</span>" : "<span class='popup-badge'>✓ Terhubung ke server</span>";
-    const overlay = _buildPopupOverlay(`
-        <div class="popup-box" role="dialog" aria-modal="true">
-            <div class="popup-icon-area">
-                <div class="popup-icon login">✓</div>
-            </div>
-            <div class="popup-body">
-                <div class="popup-title">Selamat Datang!</div>
-                <div class="popup-welcome-name">${nama}</div>
-                <div class="popup-message">Senang melihatmu kembali di <strong>Toko Sembako</strong>. Yuk, mulai belanja!</div>
-                ${mode}
-            </div>
-            <div class="popup-actions">
-                <button class="popup-btn popup-btn-primary" id="popupLoginOk">Mulai Belanja</button>
-            </div>
-        </div>
-    `);
-    overlay.querySelector("#popupLoginOk").addEventListener("click", () => { overlay.remove(); onDone?.(); });
+    // Show premium white toast notification (no icon, simplified text)
+    AppAlert.toast(`Berhasil masuk sebagai ${nama}.`, "top-end", 2500).then(() => {
+        onDone?.();
+    });
 }
 
 const DEMO_USERS = [
@@ -219,6 +162,22 @@ async function apiFetch(path, options = {}) {
     try {
         const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
         const data = await res.json().catch(() => ({}));
+        
+        // Handle session expiration (excluding login page itself)
+        if (res.status === 401 && path !== "/auth/login") {
+            localStorage.removeItem("sembako_session");
+            authSession = null;
+            showPopup({
+                type: "error",
+                title: "Sesi Berakhir",
+                message: "Sesi login Anda telah berakhir atau tidak valid. Silakan login kembali.",
+                onClose: () => {
+                    window.location.href = "login.html";
+                }
+            });
+            return { ok: false, status: 401, data: { error: "Sesi login telah berakhir." } };
+        }
+        
         return { ok: res.ok, status: res.status, data };
     } catch {
         return { ok: false, status: 0, data: { error: "Server tidak dapat dihubungi. Pastikan Flask berjalan (python run.py)." } };
@@ -243,7 +202,7 @@ function getActiveProfile() {
     return u ? { nama: u.nama, email: u.email, telepon: u.telepon, foto: u.foto } : { ...GUEST_PROFILE };
 }
 
-function requireLogin(message, onProceed) {
+function requireLogin(message, onConfirm, onCancel) {
     if (isLoggedIn()) return true;
     const msg = message || "Silakan masuk terlebih dahulu untuk menggunakan fitur ini.";
     showConfirm({
@@ -253,8 +212,15 @@ function requireLogin(message, onProceed) {
         confirmText: "Ya, Masuk",
         cancelText: "Nanti Saja",
         onConfirm: () => {
-            const returnTo = window.location.pathname.split("/").pop() + window.location.search;
-            window.location.href = "login.html?return=" + encodeURIComponent(returnTo);
+            if (typeof onConfirm === "function") {
+                onConfirm();
+            } else {
+                const returnTo = window.location.pathname.split("/").pop() + window.location.search;
+                window.location.href = "login.html?return=" + encodeURIComponent(returnTo);
+            }
+        },
+        onCancel: () => {
+            if (typeof onCancel === "function") onCancel();
         }
     });
     return false;
@@ -355,20 +321,20 @@ async function doLogout() {
     showConfirm({
         type: "warn",
         title: "Keluar dari Akun?",
-        message: "Kamu akan keluar dan masuk ke mode tamu. Keranjang belanja tetap tersimpan.",
-        confirmText: "Ya, Keluar",
+        message: "Anda akan keluar dari sesi saat ini",
+        confirmText: "Keluar",
         cancelText: "Batal",
-        danger: false,
+        danger: true,
         onConfirm: async () => {
             const token = getAuthToken();
             if (token) await apiFetch("/auth/logout", { method: "POST" });
             authSession = null;
             localStorage.removeItem("sembako_session");
+            cart = [];
+            saveCart();
             window.updateChatbotLock?.();
-            showPopup({
-                type: "info", title: "Sampai Jumpa!",
-                message: "Kamu telah keluar. Mode tamu aktif — kamu tetap bisa browsing produk.",
-                onClose: () => { window.location.href = "index.html"; }
+            AppAlert.toast("Berhasil keluar dari akun.", "top-end", 2500).then(() => {
+                window.location.href = "index.html";
             });
         }
     });
@@ -410,7 +376,7 @@ function renderCartRecommendations() {
     const rulesHTML = rules.length > 0
         ? rules.map(r => `<p class="reco-rule"><strong>${r.nama}:</strong> ${r.deskripsi}</p>`).join("")
         : `<p class="reco-rule">Produk populer yang sering dibeli pelanggan toko sembako.</p>`;
-    const title = mode === "mba" ? "Rekomendasi untuk Anda (MBA)" : "Rekomendasi Populer";
+    const title = mode === "mba" ? "Rekomendasi untuk Anda" : "Rekomendasi Populer";
     section.innerHTML = `
         <div class="reco-section">
             <h2 class="reco-title">${title}</h2>
@@ -418,7 +384,13 @@ function renderCartRecommendations() {
             <div class="reco-grid">
                 ${recoProducts.map(p => `
                     <div class="reco-card">
-                        <img src="${p.img}" alt="${p.nama}" onclick="goDetail(${p.id})">
+                        <div class="card-img-placeholder" onclick="goDetail(${p.id})" style="cursor: pointer; border-bottom: none;">
+                            <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" class="placeholder-icon">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                            </svg>
+                        </div>
                         <div class="reco-card-body">
                             <div class="reco-name" onclick="goDetail(${p.id})">${p.nama}</div>
                             <div class="reco-price">${formatRupiah(p.harga)}</div>
@@ -550,7 +522,7 @@ function saveUserProfile() {
 function renderCategories() {
     const container = document.getElementById("categoryList");
     if (!container) return;
-    container.innerHTML = categories.map(cat => 
+    container.innerHTML = categories.map(cat =>
         `<button class="category-chip ${cat === currentCategory ? 'active' : ''}" onclick="filterProduk('${cat}')">${cat}</button>`
     ).join('');
 }
@@ -564,7 +536,13 @@ function renderProducts(list) {
     }
     container.innerHTML = list.map(p => `
         <div class="card" onclick="goDetail(${p.id})">
-            <img src="${p.img}" alt="${p.nama}" class="card-img" loading="lazy">
+            <div class="card-img-placeholder">
+                <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" class="placeholder-icon">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+            </div>
             <div class="card-content">
                 <h4 class="card-title">${p.nama}</h4>
                 <p class="card-price">${formatRupiah(p.harga)}</p>
@@ -587,27 +565,40 @@ function renderCartPage() {
     const container = document.getElementById("cartList");
     if (!container) return;
 
+    const cardContainer = document.getElementById("cartCardContainer");
+    const emptyMsg = document.getElementById("cartEmptyMsg");
+
     if (cart.length === 0) {
-        container.innerHTML = `<div class="empty-msg">Keranjang masih kosong.</div>`;
-        document.getElementById("cartSummary")?.classList.add("hidden");
+        if (cardContainer) cardContainer.classList.add("hidden");
+        if (emptyMsg) emptyMsg.classList.remove("hidden");
         renderCartRecommendations();
         return;
     }
 
+    if (cardContainer) cardContainer.classList.remove("hidden");
+    if (emptyMsg) emptyMsg.classList.add("hidden");
+
     container.innerHTML = cart.map(item => `
-        <div style="background: white; padding: 16px; border-radius: 12px; box-shadow: var(--shadow); display: flex; gap: 16px;">
-            <img src="${item.img}" alt="${item.nama}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;">
-            <div style="flex: 1;">
-                <div style="font-weight: 600;">${item.nama}</div>
-                <div style="color: var(--primary-dark); font-weight: 700;">${formatRupiah(item.harga)}</div>
-                
-                <div style="display: flex; align-items: center; gap: 12px; margin-top: 12px;">
-                    <button class="qty-btn" onclick="updateQty(${item.id}, -1)">–</button>
-                    <span style="font-weight: 600; min-width: 30px; text-align: center;">${item.qty}</span>
-                    <button class="qty-btn" onclick="updateQty(${item.id}, 1)">+</button>
-                    
-                    <button onclick="removeItem(${item.id})" 
-                            style="margin-left: auto; color: #ef4444; font-weight: 600; background: none; border: none;">
+        <div class="cart-item">
+            <div class="card-img-placeholder" style="width: 70px; height: 70px; border-radius: 8px; border-bottom: none; flex-shrink: 0;">
+                <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" class="placeholder-icon" style="width: 20px; height: 20px;">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+            </div>
+            <div class="cart-item-details">
+                <div class="cart-item-info">
+                    <div class="cart-item-name">${item.nama}</div>
+                    <div class="cart-item-price">${formatRupiah(item.harga)}</div>
+                </div>
+                <div class="cart-item-controls">
+                    <div class="qty-controls">
+                        <button class="qty-btn" onclick="updateQty(${item.id}, -1)">–</button>
+                        <span style="font-weight: 600; min-width: 24px; text-align: center; font-size: 14px;">${item.qty}</span>
+                        <button class="qty-btn" onclick="updateQty(${item.id}, 1)">+</button>
+                    </div>
+                    <button onclick="removeItem(${item.id})" class="cart-item-remove-btn">
                         Hapus
                     </button>
                 </div>
@@ -618,14 +609,13 @@ function renderCartPage() {
     const total = cart.reduce((acc, item) => acc + (item.harga * item.qty), 0);
     document.getElementById("totalPrice").innerText = formatRupiah(total);
     document.getElementById("totalItems").innerText = cart.reduce((acc, i) => acc + i.qty, 0);
-    document.getElementById("cartSummary").classList.remove("hidden");
     renderCartRecommendations();
 }
 
 function renderDetailPage() {
     const params = new URLSearchParams(window.location.search);
     const id = parseInt(params.get("id"));
-    
+
     const container = document.getElementById("detailContainer");
     if (!container) return;
 
@@ -635,7 +625,7 @@ function renderDetailPage() {
     }
 
     const product = products.find(p => p.id === id);
-    
+
     if (!product) {
         container.innerHTML = `<div class="empty-msg">Produk tidak ditemukan.</div>`;
         return;
@@ -644,7 +634,13 @@ function renderDetailPage() {
     container.innerHTML = `
         <div class="detail-grid">
             <div class="detail-image">
-                <img src="${product.img}" alt="${product.nama}">
+                <div class="card-img-placeholder" style="border-radius: 12px; height: 100%; min-height: 300px; border-bottom: none;">
+                    <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" class="placeholder-icon" style="width: 48px; height: 48px;">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                </div>
             </div>
             
             <div class="detail-info">
@@ -653,7 +649,7 @@ function renderDetailPage() {
                 <p class="detail-desc">${product.desc}</p>
                 
                 <button class="add-to-cart-btn" onclick="addToCart(${product.id})">
-                    🛒 Masukkan Keranjang
+                    Masukkan Keranjang
                 </button>
             </div>
         </div>
@@ -667,9 +663,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const isProfile = window.location.pathname.includes("profile.html");
     const isRiwayat = window.location.pathname.includes("riwayat.html");
     const isLogin = window.location.pathname.includes("login.html");
+    const isCheckout = window.location.pathname.includes("checkout.html");
 
     initSiteChrome();
     updateCartBadge();
+
+    if (isLoggedIn()) {
+        fetchCartFromServer();
+    }
 
     if (isIndex) {
         renderCategories();
@@ -679,6 +680,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (isCart) renderCartPage();
     if (isDetail) renderDetailPage();
     if (isRiwayat) renderOrderHistory();
+    if (isCheckout) renderCheckoutPage();
     if (isProfile) {
         renderAddressDisplay();
         renderUserProfile();
@@ -687,20 +689,82 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!isLogin && isLoggedIn()) userProfile = { ...registeredUsers.find(u => u.email === authSession.email), password: userProfile.password };
 });
 
-function updateQty(id, change) {
+async function fetchCartFromServer() {
+    if (!isLoggedIn()) return;
+    const api = await apiFetch("/cart");
+    if (api.ok && api.data && Array.isArray(api.data.items)) {
+        const serverItems = api.data.items;
+        
+        // If server cart is empty but local cart has items, sync local cart to server
+        if (serverItems.length === 0 && cart.length > 0) {
+            for (const localItem of cart) {
+                await apiFetch("/cart", {
+                    method: "POST",
+                    body: JSON.stringify({ produk_id: localItem.id, qty: localItem.qty }),
+                });
+            }
+            // Fetch updated cart from server again
+            const refetch = await apiFetch("/cart");
+            if (refetch.ok && refetch.data && Array.isArray(refetch.data.items)) {
+                cart = refetch.data.items.map(item => ({
+                    id: item.id,
+                    nama: item.nama,
+                    harga: item.harga,
+                    img: item.img,
+                    qty: item.qty
+                }));
+            }
+        } else {
+            // Normal update from server cart
+            cart = serverItems.map(item => ({
+                id: item.id,
+                nama: item.nama,
+                harga: item.harga,
+                img: item.img,
+                qty: item.qty
+            }));
+        }
+        
+        saveCart();
+        if (document.getElementById("cartList")) {
+            renderCartPage();
+        }
+        if (window.location.pathname.includes("checkout.html")) {
+            renderCheckoutPage();
+        }
+    }
+}
+
+async function updateQty(id, change) {
     if (!requireLogin("Masuk dulu untuk mengubah keranjang.")) return;
     const item = cart.find(item => item.id === id);
     if (!item) return;
 
-    item.qty += change;
-
-    if (item.qty <= 0) {
+    const newQty = item.qty + change;
+    if (newQty <= 0) {
         removeItem(id);
         return;
     }
 
+    item.qty = newQty;
     saveCart();
     renderCartPage();
+
+    // Sync quantity change to backend database
+    const api = await apiFetch(`/cart/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ qty: newQty }),
+    });
+    if (!api.ok && api.status !== 0) {
+        showPopup({
+            title: "Gagal Mengubah Keranjang",
+            message: api.data?.error || "Server tidak dapat memperbarui jumlah barang.",
+        });
+        // Revert local change
+        item.qty -= change;
+        saveCart();
+        renderCartPage();
+    }
 }
 
 function removeItem(id) {
@@ -713,10 +777,26 @@ function removeItem(id) {
         confirmText: "Ya, Hapus",
         cancelText: "Batal",
         danger: true,
-        onConfirm: () => {
+        onConfirm: async () => {
+            const originalCart = [...cart];
             cart = cart.filter(i => i.id !== id);
             saveCart();
             renderCartPage();
+
+            // Sync removal to backend database
+            const api = await apiFetch(`/cart/${id}`, {
+                method: "PUT",
+                body: JSON.stringify({ qty: 0 }),
+            });
+            if (!api.ok && api.status !== 0) {
+                showPopup({
+                    title: "Gagal Menghapus Barang",
+                    message: api.data?.error || "Server tidak dapat menghapus barang dari database.",
+                });
+                cart = originalCart;
+                saveCart();
+                renderCartPage();
+            }
         }
     });
 }
@@ -745,9 +825,9 @@ async function addToCart(id) {
         method: "POST",
         body: JSON.stringify({ produk_id: id, qty: 1 }),
     });
-    if (!api.ok) {
+    // Check if API failed and it's not a connection error (offline fallback)
+    if (!api.ok && api.status !== 0) {
         showPopup({
-            type: "error",
             title: "Gagal Menyimpan Keranjang",
             message: api.data?.error || "Server belum bisa menyimpan barang ke database.",
         });
@@ -789,7 +869,7 @@ function renderOrderHistory() {
 
     container.innerHTML = orders.map(order => {
         const statusClass = order.status.toLowerCase().replace(/\s/g, '-');
-        
+
         return `
             <div class="order-card" onclick="showOrderDetail('${order.id}')">
                 <div class="order-header">
@@ -906,7 +986,7 @@ function previewImage(event) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         document.getElementById("previewFoto").src = e.target.result;
     };
     reader.readAsDataURL(file);
@@ -1008,20 +1088,52 @@ function updatePaymentTotals() {
     if (totalEl) totalEl.innerText = formatRupiah(total);
 }
 
-function openPaymentModal() {
+function proceedToCheckout() {
     if (!requireLogin("Masuk dulu untuk checkout.")) return;
     if (cart.length === 0) {
         showPopup({ type: "warn", title: "Keranjang Kosong", message: "Keranjang masih kosong. Tambahkan produk terlebih dahulu sebelum checkout." });
         return;
     }
+    window.location.href = "checkout.html";
+}
+
+function renderCheckoutPage() {
+    if (!isLoggedIn()) {
+        requireLogin(
+            "Masuk dulu untuk checkout.",
+            null,
+            () => { window.location.href = 'keranjang.html'; }
+        );
+        return;
+    }
+    if (cart.length === 0) {
+        showPopup({
+            type: "warn",
+            title: "Keranjang Kosong",
+            message: "Keranjang masih kosong. Tambahkan produk terlebih dahulu sebelum checkout.",
+            onClose: () => { window.location.href = 'index.html'; }
+        });
+        return;
+    }
 
     const itemsHTML = cart.map(item => `
-        <div class="order-item">
-            <span>${item.nama} × ${item.qty}</span>
-            <span>${formatRupiah(item.harga * item.qty)}</span>
+        <div class="order-item" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f1f5f9;">
+            <div class="order-item-img-placeholder">
+                <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" class="placeholder-icon">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+            </div>
+            <div style="flex-grow: 1;">
+                <div style="font-size: 13.5px; font-weight: 500; color: var(--text);">${item.nama}</div>
+                <div style="font-size: 12px; color: var(--text-light); margin-top: 2px;">${item.qty} x ${formatRupiah(item.harga)}</div>
+            </div>
+            <span style="font-size: 13.5px; font-weight: 500; color: var(--text);">${formatRupiah(item.harga * item.qty)}</span>
         </div>
     `).join('');
-    document.getElementById("orderItems").innerHTML = itemsHTML;
+    const orderItemsEl = document.getElementById("orderItems");
+    if (orderItemsEl) orderItemsEl.innerHTML = itemsHTML;
 
     // Render alamat
     const profile = getActiveProfile();
@@ -1032,13 +1144,12 @@ function openPaymentModal() {
         ${address.kecamatan}, ${address.kota} ${address.kodePos}
         ${address.catatan ? `<br><small>${address.catatan}</small>` : ''}
     `;
-    document.getElementById("paymentAddress").innerHTML = addrHTML;
+    const paymentAddressEl = document.getElementById("paymentAddress");
+    if (paymentAddressEl) paymentAddressEl.innerHTML = addrHTML;
 
     renderShippingMethods();
     renderPaymentMethods();
     updatePaymentTotals();
-
-    document.getElementById("paymentModal").style.display = "flex";
 }
 
 function renderShippingMethods() {
@@ -1065,18 +1176,16 @@ function selectShipping(method) {
 
 function renderPaymentMethods() {
     const methods = [
-        { id: "COD", name: "Cash on Delivery (COD)", icon: "💵" },
-        { id: "BCA", name: "Transfer BCA", icon: "🏦" },
-        { id: "MANDIRI", name: "Transfer Mandiri", icon: "🏦" },
-        { id: "DANA", name: "DANA", icon: "📱" },
-        { id: "GOPAY", name: "GoPay", icon: "📱" },
+        { id: "COD", name: "Cash on Delivery (COD)" },
+        { id: "EWALLET", name: "E-Wallet (GoPay, OVO, DANA)" },
+        { id: "TRANSFER", name: "Transfer Bank (BCA, Mandiri, BRI)" },
     ];
 
     const container = document.getElementById("paymentMethods");
+    if (!container) return;
     container.innerHTML = methods.map(m => `
         <div class="payment-option ${m.id === selectedPaymentMethod ? 'selected' : ''}" 
              onclick="selectPayment('${m.id}')">
-            <span style="font-size: 24px;">${m.icon}</span>
             <span>${m.name}</span>
         </div>
     `).join('');
@@ -1088,7 +1197,8 @@ function selectPayment(method) {
 }
 
 function closePaymentModal() {
-    document.getElementById("paymentModal").style.display = "none";
+    const modalEl = document.getElementById("paymentModal");
+    if (modalEl) modalEl.style.display = "none";
 }
 
 async function confirmPayment() {
@@ -1112,12 +1222,12 @@ async function confirmPayment() {
         });
         return;
     }
-    
+
     const newOrder = {
         id: checkout.data.order?.id || "ORD-" + Date.now().toString().slice(-8),
-        tanggal: new Date().toLocaleDateString('id-ID', { 
-            day: 'numeric', month: 'long', year: 'numeric', 
-            hour: '2-digit', minute: '2-digit' 
+        tanggal: new Date().toLocaleDateString('id-ID', {
+            day: 'numeric', month: 'long', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
         }),
         items: [...cart],
         total: total,
@@ -1136,7 +1246,11 @@ async function confirmPayment() {
     saveCart();
 
     closePaymentModal();
-    const methodLabels = { COD: "Cash on Delivery", BCA: "Transfer BCA", MANDIRI: "Transfer Mandiri", DANA: "DANA", GOPAY: "GoPay" };
+    const methodLabels = {
+        COD: "Cash on Delivery (COD)",
+        EWALLET: "E-Wallet",
+        TRANSFER: "Transfer Bank"
+    };
     showPopup({
         type: "success",
         title: "Pesanan Berhasil!",
@@ -1151,7 +1265,7 @@ function showOrderDetail(orderId) {
     if (!order) return;
 
     const content = document.getElementById("orderDetailContent");
-    
+
     let itemsHTML = order.items.map(item => `
         <div class="order-item">
             <span>${item.nama} × ${item.qty}</span>
@@ -1192,7 +1306,7 @@ function buyAgain(orderId) {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
 
-    cart = order.items.map(item => ({...item}));
+    cart = order.items.map(item => ({ ...item }));
     saveCart();
     showPopup({
         type: "cart",

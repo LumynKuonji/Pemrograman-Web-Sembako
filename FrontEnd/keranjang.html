@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Keranjang Belanja - Sembako</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="sweetalert-custom.css">
 </head>
 <body>
     <header class="header">
@@ -23,78 +24,31 @@
     <div class="container cart-page">
         <h1 class="page-title">Keranjang Belanja</h1>
         
-        <div id="cartList"></div>
+        <div id="cartCardContainer" class="cart-card-container">
+            <div id="cartList"></div>
+
+            <div id="cartSummary" class="cart-total-summary">
+                <div class="summary-row">
+                    <span>Total Barang</span>
+                    <strong id="totalItems">0</strong>
+                </div>
+                <div class="summary-row total">
+                    <span>Total Harga</span>
+                    <strong id="totalPrice">Rp 0</strong>
+                </div>
+                <button onclick="proceedToCheckout()" class="checkout-btn">
+                    Checkout Sekarang
+                </button>
+            </div>
+        </div>
+
+        <div id="cartEmptyMsg" class="empty-msg hidden">Keranjang masih kosong.</div>
 
         <div id="cartRecommendations"></div>
-
-        <div id="cartSummary" class="cart-total" style="margin-top: 20px;">
-            <div class="cart-row">
-                <span>Total Barang</span>
-                <strong id="totalItems">0</strong>
-            </div>
-            <div class="cart-row total">
-                <span>Total Harga</span>
-                <strong id="totalPrice">Rp 0</strong>
-            </div>
-            <button onclick="openPaymentModal()" class="btn-primary" style="width: 100%; padding: 16px; font-size: 18px;">
-             Checkout Sekarang
-            </button>
-        </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="sweetalert-custom.js"></script>
     <script src="script.js"></script>
-
-<div id="paymentModal" class="modal">
-    <div class="modal-content payment-modal">
-        <div class="modal-header">
-            <h2>Konfirmasi Pembayaran</h2>
-            <button class="close" onclick="closePaymentModal()">×</button>
-        </div>
-        
-        <div class="payment-content">
-            <div class="section">
-                <h3>Ringkasan Pesanan</h3>
-                <div id="orderItems"></div>
-            </div>
-
-            <div class="section">
-                <h3>Alamat Pengiriman</h3>
-                <div id="paymentAddress" class="address-box"></div>
-            </div>
-
-            <div class="section">
-                <h3>Pilih Metode Pengiriman</h3>
-                <div class="shipping-methods" id="shippingMethods">
-                </div>
-            </div>
-
-            <div class="section">
-                <h3>Pilih Metode Pembayaran</h3>
-                <div class="payment-methods" id="paymentMethods">
-                </div>
-            </div>
-
-            <div class="total-section">
-                <div class="summary-row">
-                    <span>Subtotal Barang</span>
-                    <span id="modalSubtotal"></span>
-                </div>
-                <div class="summary-row">
-                    <span>Ongkos Kirim</span>
-                    <span id="modalShippingCost"></span>
-                </div>
-                <div class="total-row">
-                    <span>Total Pembayaran</span>
-                    <span id="modalTotal" class="total-amount"></span>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal-footer">
-            <button class="btn-secondary" onclick="closePaymentModal()">Batalkan</button>
-            <button class="btn-primary" onclick="confirmPayment()">Bayar Sekarang</button>
-        </div>
-    </div>
-</div>
 </body>
 </html>
