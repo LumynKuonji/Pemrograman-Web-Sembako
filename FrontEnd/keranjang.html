@@ -1,54 +1,70 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Keranjang Belanja - Sembako</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/sweetalert-custom.css">
-</head>
-<body>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/sweetalert-custom.css" />
+  </head>
+  <body>
     <header class="header">
-        <div class="header-inner">
-            <button type="button" class="menu-btn btn-back" onclick="window.location.href='index.html'" aria-label="Kembali">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-            </button>
-            <div class="logo">LOGO</div>
-            <div class="header-spacer"></div>
-            <div class="header-icons">
-                <span class="cart-header-count" id="cartHeaderCount">0 item</span>
-            </div>
+      <div class="header-inner">
+        <button
+          type="button"
+          class="menu-btn btn-back"
+          onclick="window.location.href = 'index.html'"
+          aria-label="Kembali"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <div class="logo">LOGO</div>
+        <div class="header-spacer"></div>
+        <div class="header-icons">
+          <span class="cart-header-count" id="cartHeaderCount">0 item</span>
         </div>
+      </div>
     </header>
 
     <div class="container cart-page">
-        <h1 class="page-title">Keranjang Belanja</h1>
-        
-        <div id="cartCardContainer" class="cart-card-container">
-            <div id="cartList"></div>
+      <h1 class="page-title">Keranjang Belanja</h1>
 
-            <div id="cartSummary" class="cart-total-summary">
-                <div class="summary-row">
-                    <span>Total Barang</span>
-                    <strong id="totalItems">0</strong>
-                </div>
-                <div class="summary-row total">
-                    <span>Total Harga</span>
-                    <strong id="totalPrice">Rp 0</strong>
-                </div>
-                <button onclick="proceedToCheckout()" class="checkout-btn">
-                    Checkout Sekarang
-                </button>
-            </div>
+      <div id="cartCardContainer" class="cart-card-container">
+        <div id="cartList"></div>
+
+        <div id="cartSummary" class="cart-total-summary">
+          <div class="summary-row">
+            <span>Total Barang</span>
+            <strong id="totalItems">0</strong>
+          </div>
+          <div class="summary-row total">
+            <span>Total Harga</span>
+            <strong id="totalPrice">Rp 0</strong>
+          </div>
+          <button onclick="proceedToCheckout()" class="checkout-btn">
+            Checkout Sekarang
+          </button>
         </div>
+      </div>
 
-        <div id="cartEmptyMsg" class="empty-msg hidden">Keranjang masih kosong.</div>
+      <div id="cartEmptyMsg" class="empty-msg hidden">
+        Keranjang masih kosong.
+      </div>
 
-        <div id="cartRecommendations"></div>
+      <div id="cartRecommendations"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="js/sweetalert-custom.js"></script>
     <script src="js/script.js"></script>
-</body>
+  </body>
 </html>

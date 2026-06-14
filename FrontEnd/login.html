@@ -1,55 +1,87 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Masuk - Toko Sembako</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/sweetalert-custom.css">
-</head>
-<body>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/sweetalert-custom.css" />
+  </head>
+  <body>
     <header class="header">
-        <div class="header-inner">
-            <button type="button" class="menu-btn btn-back" onclick="goBackFromLogin()" aria-label="Kembali">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-            </button>
-            <div class="logo">LOGO</div>
-        </div>
+      <div class="header-inner">
+        <button
+          type="button"
+          class="menu-btn btn-back"
+          onclick="goBackFromLogin()"
+          aria-label="Kembali"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <div class="logo">LOGO</div>
+      </div>
     </header>
 
     <div class="container login-page">
-        <h1 class="page-title">Masuk Akun</h1>
-        <p class="login-subtitle">Login diperlukan untuk menambah barang ke keranjang dan checkout.</p>
+      <h1 class="page-title">Masuk Akun</h1>
+      <p class="login-subtitle">
+        Login diperlukan untuk menambah barang ke keranjang dan checkout.
+      </p>
 
-        <div class="login-card">
-            <label>Email</label>
-            <input type="email" id="loginEmail" placeholder="contoh: moreno@gmail.com" autocomplete="email">
+      <div class="login-card">
+        <label>Email</label>
+        <input
+          type="email"
+          id="loginEmail"
+          placeholder="contoh: moreno@gmail.com"
+          autocomplete="email"
+        />
 
-            <label>Password</label>
-            <input type="password" id="loginPassword" placeholder="Minimal 6 karakter" autocomplete="current-password">
+        <label>Password</label>
+        <input
+          type="password"
+          id="loginPassword"
+          placeholder="Minimal 6 karakter"
+          autocomplete="current-password"
+        />
 
-            <button class="btn-primary login-btn" onclick="handleLogin()">Masuk</button>
+        <button class="btn-primary login-btn" onclick="handleLogin()">
+          Masuk
+        </button>
 
-            <p class="login-switch">Belum punya akun? <a href="register.html">Daftar di sini</a></p>
+        <p class="login-switch">
+          Belum punya akun? <a href="register.html">Daftar di sini</a>
+        </p>
 
-            <div class="login-hint">
-                <strong>Akun demo (setelah jalankan Flask):</strong><br>
-                Email: moreno@gmail.com<br>
-                Password: 123456
-            </div>
+        <div class="login-hint">
+          <strong>Akun demo (setelah jalankan Flask):</strong><br />
+          Email: moreno@gmail.com<br />
+          Password: 123456
         </div>
+      </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="js/sweetalert-custom.js"></script>
     <script src="js/script.js"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            if (isLoggedIn()) window.location.href = getReturnUrl() || "index.html";
-            document.getElementById("loginPassword")?.addEventListener("keydown", (e) => {
-                if (e.key === "Enter") handleLogin();
-            });
-        });
+      document.addEventListener("DOMContentLoaded", () => {
+        if (isLoggedIn()) window.location.href = getReturnUrl() || "index.html";
+        document
+          .getElementById("loginPassword")
+          ?.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") handleLogin();
+          });
+      });
     </script>
-</body>
+  </body>
 </html>

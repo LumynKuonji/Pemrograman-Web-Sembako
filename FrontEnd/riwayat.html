@@ -1,49 +1,117 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Riwayat Pesanan - Toko Sembako</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/sweetalert-custom.css">
-</head>
-<body>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/sweetalert-custom.css" />
+  </head>
+  <body>
     <header class="header">
-        <div class="header-inner">
-            <button type="button" class="menu-btn btn-back" onclick="history.back()" aria-label="Kembali">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-            </button>
-            <div class="logo">LOGO</div>
-            <div class="header-icons">
-                <button class="icon-btn cart-icon-btn" onclick="window.location.href='keranjang.html'">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M9 22C9.55228 22 10 21.5523 10 21C10 20.4477 9.55228 20 9 20C8.44772 20 8 20.4477 8 21C8 21.5523 8.44772 22 9 22Z" fill="currentColor"/>
-                        <path d="M17 22C17.5523 22 18 21.5523 18 21C18 20.4477 17.5523 20 17 20C16.4477 20 16 20.4477 16 21C16 21.5523 16.4477 22 17 22Z" fill="currentColor"/>
-                        <path d="M3 3H5L7 17H19L21 7H7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <span class="badge" id="cartBadge">0</span>
-                </button>
-            </div>
+      <div class="header-inner">
+        <button
+          type="button"
+          class="menu-btn btn-back"
+          onclick="history.back()"
+          aria-label="Kembali"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <div class="logo">LOGO</div>
+        <div class="header-icons">
+          <button
+            class="icon-btn cart-icon-btn"
+            onclick="window.location.href = 'keranjang.html'"
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M9 22C9.55228 22 10 21.5523 10 21C10 20.4477 9.55228 20 9 20C8.44772 20 8 20.4477 8 21C8 21.5523 8.44772 22 9 22Z"
+                fill="currentColor"
+              />
+              <path
+                d="M17 22C17.5523 22 18 21.5523 18 21C18 20.4477 17.5523 20 17 20C16.4477 20 16 20.4477 16 21C16 21.5523 16.4477 22 17 22Z"
+                fill="currentColor"
+              />
+              <path
+                d="M3 3H5L7 17H19L21 7H7.5"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span class="badge" id="cartBadge">0</span>
+          </button>
         </div>
+      </div>
     </header>
 
     <div class="container riwayat-page">
-        <h1 class="page-title">Riwayat Pesanan</h1>
-        <div id="orderList" class="order-list"></div>
+      <h1 class="page-title">Riwayat Pesanan</h1>
+      <div id="orderList" class="order-list"></div>
     </div>
 
     <div id="orderDetailModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Detail Pesanan <span id="modalOrderId"></span></h2>
-                <button class="close" onclick="closeOrderDetail()">×</button>
-            </div>
-            <div id="orderDetailContent"></div>
+      <div class="modal-content" style="max-width: 440px">
+        <div
+          class="modal-header"
+          style="
+            display: block;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+          "
+        >
+          <h2
+            style="
+              font-size: 18px;
+              font-weight: 700;
+              color: var(--text);
+              margin: 0;
+            "
+          >
+            Detail Pesanan
+          </h2>
+          <div
+            id="modalOrderId"
+            style="
+              font-size: 12px;
+              color: var(--text-light);
+              font-weight: 500;
+              margin-top: 4px;
+              word-break: break-all;
+            "
+          ></div>
+          <button
+            class="close"
+            onclick="closeOrderDetail()"
+            style="top: 16px; right: 20px"
+          >
+            ×
+          </button>
         </div>
+        <div id="orderDetailContent"></div>
+      </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="js/sweetalert-custom.js"></script>
     <script src="js/script.js"></script>
-</body>
+  </body>
 </html>
