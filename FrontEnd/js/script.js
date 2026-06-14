@@ -479,7 +479,7 @@ function loadChatbotWidget() {
     const existing = document.querySelector('script[data-chatbot="1"]');
     if (existing) return;
     const s = document.createElement("script");
-    s.src = "chatbot.js";
+    s.src = "js/chatbot.js";
     s.dataset.chatbot = "1";
     s.onload = () => {
         window.initChatbot?.();
@@ -1285,10 +1285,10 @@ function showOrderDetail(orderId) {
                 ${itemsHTML}
             </div>
             
-            <div style="margin-top: 20px; text-align:right; font-size:18px; font-weight:700;">
-                <div style="font-size:14px; font-weight:500; color:#64748b;">Subtotal: ${formatRupiah(order.subtotal || Math.max((order.total || 0) - (order.shippingCost || 0), 0))}</div>
-                <div style="font-size:14px; font-weight:500; color:#64748b;">Ongkir: ${formatRupiah(order.shippingCost || 0)}</div>
-                Total: ${formatRupiah(order.total)}
+            <div style="margin-top: 20px; text-align:right; font-size:14px; font-weight:500; color:var(--text-light);">
+                <div style="font-size:14px; font-weight:500; color:#64748b; margin-bottom:4px;">Subtotal: ${formatRupiah(order.subtotal || Math.max((order.total || 0) - (order.shippingCost || 0), 0))}</div>
+                <div style="font-size:14px; font-weight:500; color:#64748b; margin-bottom:8px;">Ongkir: ${formatRupiah(order.shippingCost || 0)}</div>
+                Total: <strong style="font-size:16px; font-weight:600; color:var(--primary-dark);">${formatRupiah(order.total)}</strong>
             </div>
         </div>
     `;
