@@ -9,8 +9,7 @@
   </head>
   <body>
     <header class="header">
-      <div class="header-inner">
-        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+      <div class="header-inner header-home">
         <div class="logo">LOGO</div>
         <div class="search-box">
           <input type="text" id="searchInput" placeholder="Cari produk..." />
@@ -79,29 +78,7 @@
       <section class="product-grid" id="productGrid"></section>
     </main>
 
-    <aside class="sidebar" id="sidebar">
-      <button class="close-btn" onclick="toggleSidebar()">×</button>
-      <nav>
-        <a
-          href="#"
-          onclick="
-            filterProduk('Semua');
-            toggleSidebar();
-          "
-          >Semua</a
-        >
-        <a href="profile.html">Profil Saya</a>
-        <a href="keranjang.html">Keranjang Belanja</a>
-        <a
-          href="#"
-          onclick="
-            openModal('csModal');
-            toggleSidebar();
-          "
-          >Customer Service</a
-        >
-      </nav>
-    </aside>
+
 
     <div class="modal" id="csModal">
       <div class="modal-content">
