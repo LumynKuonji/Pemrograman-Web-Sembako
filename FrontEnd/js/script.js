@@ -1205,8 +1205,10 @@ async function addToCart(id) {
   }
 
   const existing = cart.find((item) => item.id === id);
-  if (existing) existing.qty += 1;
-  else
+  const isExisting = !!existing;
+  if (existing) {
+    existing.qty += 1;
+  } else {
     cart.push({
       id: product.id,
       nama: product.nama,
@@ -1214,10 +1216,19 @@ async function addToCart(id) {
       img: product.img,
       qty: 1,
     });
+  }
   saveCart();
 
   const cartItem = cart.find((i) => i.id === id);
-  showCartPopup(product, cartItem?.qty || 1);
+  if (isExisting) {
+    AppAlert.toast(
+      `${product.nama} berhasil ditambahkan`,
+      "top-end",
+      3000
+    );
+  } else {
+    showCartPopup(product, cartItem?.qty || 1);
+  }
 
   if (document.getElementById("cartList")) {
     renderCartPage();
