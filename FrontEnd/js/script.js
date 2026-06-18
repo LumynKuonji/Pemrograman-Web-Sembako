@@ -305,23 +305,17 @@ function showConfirm({
 }
 
 function showCartPopup(product, qty = 1) {
-  const cartCount = cart.reduce((acc, i) => acc + i.qty, 0);
-
-  AppAlert.toast(
-    `Produk dimasukkan ke keranjang (Total item: ${cartCount})`,
-    "top-end",
-    3000,
-  );
-
   return Swal.fire({
     title: "Berhasil Ditambahkan!",
     html: `<strong>${product.nama}</strong> (${qty} pcs) telah dimasukkan ke keranjang.`,
     showCancelButton: true,
     confirmButtonText: "Lihat Keranjang",
     cancelButtonText: "Lanjut Belanja",
-    timer: 4000,
-    timerProgressBar: true,
+    timer: undefined,
+    timerProgressBar: false,
     scrollbarPadding: false,
+    allowOutsideClick: false,
+    allowEscapeKey: false,
     showClass: {
       popup: "animate-custom-show",
     },
@@ -372,6 +366,7 @@ const categories = [
 let currentCategory = "Semua";
 let cart = JSON.parse(localStorage.getItem("sembako_cart")) || [];
 let orders = JSON.parse(localStorage.getItem("sembako_orders")) || [];
+let isCheckoutSubmitting = false;
 
 let address = JSON.parse(localStorage.getItem("sembako_address")) || {
   alamatLengkap: "Jl. Raya Kebon Jeruk No. 45",
@@ -1205,7 +1200,6 @@ async function addToCart(id) {
   }
 
   const existing = cart.find((item) => item.id === id);
-  const isExisting = !!existing;
   if (existing) {
     existing.qty += 1;
   } else {
@@ -1220,15 +1214,7 @@ async function addToCart(id) {
   saveCart();
 
   const cartItem = cart.find((i) => i.id === id);
-  if (isExisting) {
-    AppAlert.toast(
-      `${product.nama} berhasil ditambahkan`,
-      "top-end",
-      3000
-    );
-  } else {
-    showCartPopup(product, cartItem?.qty || 1);
-  }
+  showCartPopup(product, cartItem?.qty || 1);
 
   if (document.getElementById("cartList")) {
     renderCartPage();
@@ -1550,12 +1536,6 @@ function updatePaymentTotals() {
 function proceedToCheckout() {
   if (!requireLogin("Masuk dulu untuk checkout.")) return;
   if (cart.length === 0) {
-    showPopup({
-      type: "warn",
-      title: "Keranjang Kosong",
-      message:
-        "Keranjang masih kosong. Tambahkan produk terlebih dahulu sebelum checkout.",
-    });
     return;
   }
   window.location.href = "checkout.html";
@@ -1569,15 +1549,7 @@ function renderCheckoutPage() {
     return;
   }
   if (cart.length === 0) {
-    showPopup({
-      type: "warn",
-      title: "Keranjang Kosong",
-      message:
-        "Keranjang masih kosong. Tambahkan produk terlebih dahulu sebelum checkout.",
-      onClose: () => {
-        window.location.href = "index.html";
-      },
-    });
+    if (!isCheckoutSubmitting) window.location.href = "keranjang.html";
     return;
   }
 
@@ -1676,6 +1648,19 @@ function closePaymentModal() {
 }
 
 async function confirmPayment() {
+  if (isCheckoutSubmitting) return;
+  if (cart.length === 0) {
+    window.location.href = "keranjang.html";
+    return;
+  }
+
+  isCheckoutSubmitting = true;
+  const payBtn = document.querySelector(".pay-btn");
+  if (payBtn) {
+    payBtn.disabled = true;
+    payBtn.textContent = "Memproses...";
+  }
+
   const subtotal = getCartSubtotal();
   const shipping = getSelectedShipping();
   const total = subtotal + shipping.cost;
@@ -1689,6 +1674,11 @@ async function confirmPayment() {
   });
 
   if (!checkout.ok) {
+    isCheckoutSubmitting = false;
+    if (payBtn) {
+      payBtn.disabled = false;
+      payBtn.textContent = "Bayar Sekarang";
+    }
     showPopup({
       type: "error",
       title: "Checkout Gagal",
@@ -1729,14 +1719,33 @@ async function confirmPayment() {
     EWALLET: "E-Wallet",
     TRANSFER: "Transfer Bank",
   };
-  showPopup({
-    type: "success",
+  Swal.fire({
+    icon: "success",
     title: "Pesanan Berhasil!",
-    message: `Nomor pesanan kamu: <strong>${newOrder.id}</strong><br>Metode: <strong>${methodLabels[selectedPaymentMethod] || selectedPaymentMethod}</strong><br>Pengiriman: <strong>${shipping.name}</strong> (${formatRupiah(shipping.cost)})<br>Total: <strong>${formatRupiah(total)}</strong><br><br>Pesananmu sedang kami proses. Terima kasih sudah belanja!`,
-    btnText: "Lihat Riwayat",
-    onClose: () => {
-      window.location.href = "riwayat.html";
+    html: `Nomor pesanan kamu: <strong>${newOrder.id}</strong><br>Metode: <strong>${methodLabels[selectedPaymentMethod] || selectedPaymentMethod}</strong><br>Pengiriman: <strong>${shipping.name}</strong> (${formatRupiah(shipping.cost)})<br>Total: <strong>${formatRupiah(total)}</strong><br><br>Pesananmu sedang kami proses. Terima kasih sudah belanja!`,
+    confirmButtonText: "Lihat Riwayat",
+    showCloseButton: false,
+    timer: undefined,
+    timerProgressBar: false,
+    scrollbarPadding: false,
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    allowEnterKey: true,
+    showClass: {
+      popup: "animate-custom-show",
     },
+    hideClass: {
+      popup: "animate-custom-hide",
+    },
+    customClass: {
+      popup: "custom-swal-popup",
+      title: "custom-swal-title",
+      htmlContainer: "custom-swal-html",
+    },
+  }).then((result) => {
+    if (result.isConfirmed) {
+      window.location.href = "riwayat.html";
+    }
   });
 }
 

@@ -16,7 +16,11 @@ const AppAlert = {
       confirmButtonText: btnText,
       showCloseButton: true,
       focusConfirm: true,
+      timer: undefined,
+      timerProgressBar: false,
       scrollbarPadding: false,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
       showClass: {
         popup: "animate-custom-show",
       },
