@@ -31,4 +31,4 @@ if __name__ == "__main__":
         print(f"                {url}")
     else:
         print("Chatbot AI:     isi BackEnd/config_ai.env (NVIDIA NIM / OpenRouter / 9Router)")
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)

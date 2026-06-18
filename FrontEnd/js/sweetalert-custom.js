@@ -21,12 +21,6 @@ const AppAlert = {
       scrollbarPadding: false,
       allowOutsideClick: false,
       allowEscapeKey: false,
-      showClass: {
-        popup: "animate-custom-show",
-      },
-      hideClass: {
-        popup: "animate-custom-hide",
-      },
       customClass: {
         popup: "custom-swal-popup",
         title: "custom-swal-title",
@@ -68,12 +62,6 @@ const AppAlert = {
       focusConfirm: !danger,
       focusCancel: danger,
       scrollbarPadding: false,
-      showClass: {
-        popup: "animate-custom-show",
-      },
-      hideClass: {
-        popup: "animate-custom-hide",
-      },
       customClass: {
         popup: "custom-swal-popup",
         title: "custom-swal-title",

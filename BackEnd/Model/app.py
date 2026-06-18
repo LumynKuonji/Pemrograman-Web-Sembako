@@ -60,4 +60,4 @@ if __name__ == "__main__":
     print("API Produk: http://localhost:5000/api/products")
     print("API Cart: http://localhost:5000/api/cart")
     print("API Rekomendasi: http://localhost:5000/api/recommendations?cart_ids=1")
-    create_app().run(debug=True)
+    create_app().run(debug=True, use_reloader=False)

@@ -306,8 +306,22 @@ function showConfirm({
 
 function showCartPopup(product, qty = 1) {
   return Swal.fire({
-    title: "Berhasil Ditambahkan!",
-    html: `<strong>${product.nama}</strong> (${qty} pcs) telah dimasukkan ke keranjang.`,
+    title: "",
+    html: `
+      <div class="swal-custom-container">
+        <div class="swal-custom-icon cart-success">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="21" r="1"></circle>
+            <circle cx="20" cy="21" r="1"></circle>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+          </svg>
+        </div>
+        <h3 class="swal-custom-title-text">Berhasil Ditambahkan!</h3>
+        <p class="swal-custom-desc">
+          <strong>${product.nama}</strong> (${qty} pcs) telah dimasukkan ke keranjang.
+        </p>
+      </div>
+    `,
     showCancelButton: true,
     confirmButtonText: "Lihat Keranjang",
     cancelButtonText: "Lanjut Belanja",
@@ -316,16 +330,11 @@ function showCartPopup(product, qty = 1) {
     scrollbarPadding: false,
     allowOutsideClick: false,
     allowEscapeKey: false,
-    showClass: {
-      popup: "animate-custom-show",
-    },
-    hideClass: {
-      popup: "animate-custom-hide",
-    },
     customClass: {
-      popup: "custom-swal-popup",
-      title: "custom-swal-title",
-      htmlContainer: "custom-swal-html",
+      popup: "custom-swal-popup-premium",
+      actions: "custom-swal-actions-premium",
+      confirmButton: "custom-swal-confirm-premium",
+      cancelButton: "custom-swal-cancel-premium",
     },
   }).then((result) => {
     if (result.isConfirmed) {
@@ -592,7 +601,7 @@ async function handleRegister() {
     body: JSON.stringify({ nama, email, password, telepon }),
   });
   if (!api.ok) {
-    if (registeredUsers.some((u) => u.email === email)) {
+    if (api.status === 0 && registeredUsers.some((u) => u.email === email)) {
       showPopup({
         type: "error",
         title: "Email Sudah Terdaftar",
@@ -1115,7 +1124,7 @@ async function updateQty(id, change) {
     method: "PUT",
     body: JSON.stringify({ qty: newQty }),
   });
-  if (!api.ok && api.status !== 0) {
+  if (!api.ok && api.status !== 0 && api.status !== 401) {
     showPopup({
       title: "Gagal Mengubah Keranjang",
       message:
@@ -1148,7 +1157,7 @@ function removeItem(id) {
         method: "PUT",
         body: JSON.stringify({ qty: 0 }),
       });
-      if (!api.ok && api.status !== 0) {
+      if (!api.ok && api.status !== 0 && api.status !== 401) {
         showPopup({
           title: "Gagal Menghapus Barang",
           message:
@@ -1190,7 +1199,7 @@ async function addToCart(id) {
     body: JSON.stringify({ produk_id: id, qty: 1 }),
   });
 
-  if (!api.ok && api.status !== 0) {
+  if (!api.ok && api.status !== 0 && api.status !== 401) {
     showPopup({
       title: "Gagal Menyimpan Keranjang",
       message:
@@ -1673,7 +1682,7 @@ async function confirmPayment() {
     }),
   });
 
-  if (!checkout.ok) {
+  if (!checkout.ok && checkout.status !== 0 && checkout.status !== 401) {
     isCheckoutSubmitting = false;
     if (payBtn) {
       payBtn.disabled = false;
@@ -1720,9 +1729,38 @@ async function confirmPayment() {
     TRANSFER: "Transfer Bank",
   };
   Swal.fire({
-    icon: "success",
-    title: "Pesanan Berhasil!",
-    html: `Nomor pesanan kamu: <strong>${newOrder.id}</strong><br>Metode: <strong>${methodLabels[selectedPaymentMethod] || selectedPaymentMethod}</strong><br>Pengiriman: <strong>${shipping.name}</strong> (${formatRupiah(shipping.cost)})<br>Total: <strong>${formatRupiah(total)}</strong><br><br>Pesananmu sedang kami proses. Terima kasih sudah belanja!`,
+    title: "",
+    html: `
+      <div class="swal-custom-container">
+        <div class="swal-custom-icon order-success">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+        </div>
+        <h3 class="swal-custom-title-text">Pesanan Berhasil!</h3>
+        <p class="swal-custom-desc-sub">Terima kasih atas belanjaan Anda. Pesanan Anda telah diterima dan sedang diproses.</p>
+        
+        <div class="receipt-box">
+          <div class="receipt-row">
+            <span class="receipt-label">ID Pesanan</span>
+            <strong class="receipt-value highlighted">${newOrder.id}</strong>
+          </div>
+          <div class="receipt-row">
+            <span class="receipt-label">Metode Bayar</span>
+            <span class="receipt-value">${methodLabels[selectedPaymentMethod] || selectedPaymentMethod}</span>
+          </div>
+          <div class="receipt-row">
+            <span class="receipt-label">Pengiriman</span>
+            <span class="receipt-value">${shipping.name}</span>
+          </div>
+          <div class="receipt-row total-row">
+            <span class="receipt-label">Total Bayar</span>
+            <strong class="receipt-value price">${formatRupiah(total)}</strong>
+          </div>
+        </div>
+      </div>
+    `,
     confirmButtonText: "Lihat Riwayat",
     showCloseButton: false,
     timer: undefined,
@@ -1731,16 +1769,10 @@ async function confirmPayment() {
     allowOutsideClick: false,
     allowEscapeKey: false,
     allowEnterKey: true,
-    showClass: {
-      popup: "animate-custom-show",
-    },
-    hideClass: {
-      popup: "animate-custom-hide",
-    },
     customClass: {
-      popup: "custom-swal-popup",
-      title: "custom-swal-title",
-      htmlContainer: "custom-swal-html",
+      popup: "custom-swal-popup-premium",
+      actions: "custom-swal-actions-premium",
+      confirmButton: "custom-swal-confirm-premium full-width",
     },
   }).then((result) => {
     if (result.isConfirmed) {
