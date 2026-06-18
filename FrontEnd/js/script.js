@@ -309,13 +309,6 @@ function showCartPopup(product, qty = 1) {
     title: "",
     html: `
       <div class="swal-custom-container">
-        <div class="swal-custom-icon cart-success">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="9" cy="21" r="1"></circle>
-            <circle cx="20" cy="21" r="1"></circle>
-            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-          </svg>
-        </div>
         <h3 class="swal-custom-title-text">Berhasil Ditambahkan!</h3>
         <p class="swal-custom-desc">
           <strong>${product.nama}</strong> (${qty} pcs) telah dimasukkan ke keranjang.
@@ -330,11 +323,16 @@ function showCartPopup(product, qty = 1) {
     scrollbarPadding: false,
     allowOutsideClick: false,
     allowEscapeKey: false,
+    showClass: {
+      popup: "animate-custom-show",
+    },
+    hideClass: {
+      popup: "animate-custom-hide",
+    },
     customClass: {
-      popup: "custom-swal-popup-premium",
-      actions: "custom-swal-actions-premium",
-      confirmButton: "custom-swal-confirm-premium",
-      cancelButton: "custom-swal-cancel-premium",
+      popup: "custom-swal-popup",
+      confirmButton: "",
+      cancelButton: "",
     },
   }).then((result) => {
     if (result.isConfirmed) {
@@ -1194,6 +1192,38 @@ async function addToCart(id) {
   if (!requireLogin("Masuk dulu untuk menambah barang ke keranjang.")) return;
   const product = products.find((p) => p.id === id);
   if (!product) return;
+
+  // Save the original cart state for rollback in case of error
+  const originalCart = JSON.parse(JSON.stringify(cart));
+
+  // Perform optimistic update
+  const existing = cart.find((item) => item.id === id);
+  if (existing) {
+    existing.qty += 1;
+    saveCart();
+    showCartToast(product.nama);
+  } else {
+    cart.push({
+      id: product.id,
+      nama: product.nama,
+      harga: product.harga,
+      img: product.img,
+      qty: 1,
+    });
+    saveCart();
+    showCartPopup(product, 1);
+  }
+
+  // Update cart page rendering if we are on that page
+  if (document.getElementById("cartList")) {
+    renderCartPage();
+    const cartList = document.getElementById("cartList");
+    cartList.classList.add("cart-list-updated");
+    setTimeout(() => cartList.classList.remove("cart-list-updated"), 700);
+    cartList.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  // Send request to the server in the background
   const api = await apiFetch("/cart", {
     method: "POST",
     body: JSON.stringify({ produk_id: id, qty: 1 }),
@@ -1205,32 +1235,13 @@ async function addToCart(id) {
       message:
         api.data?.error || "Server belum bisa menyimpan barang ke database.",
     });
-    return;
-  }
 
-  const existing = cart.find((item) => item.id === id);
-  if (existing) {
-    existing.qty += 1;
-  } else {
-    cart.push({
-      id: product.id,
-      nama: product.nama,
-      harga: product.harga,
-      img: product.img,
-      qty: 1,
-    });
-  }
-  saveCart();
-
-  const cartItem = cart.find((i) => i.id === id);
-  showCartPopup(product, cartItem?.qty || 1);
-
-  if (document.getElementById("cartList")) {
-    renderCartPage();
-    const cartList = document.getElementById("cartList");
-    cartList.classList.add("cart-list-updated");
-    setTimeout(() => cartList.classList.remove("cart-list-updated"), 700);
-    cartList.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    // Rollback changes
+    cart = originalCart;
+    saveCart();
+    if (document.getElementById("cartList")) {
+      renderCartPage();
+    }
   }
 }
 
@@ -1769,6 +1780,12 @@ async function confirmPayment() {
     allowOutsideClick: false,
     allowEscapeKey: false,
     allowEnterKey: true,
+    showClass: {
+      popup: "animate-custom-show",
+    },
+    hideClass: {
+      popup: "animate-custom-hide",
+    },
     customClass: {
       popup: "custom-swal-popup-premium",
       actions: "custom-swal-actions-premium",
