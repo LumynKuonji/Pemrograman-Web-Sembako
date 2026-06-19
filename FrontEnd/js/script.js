@@ -372,7 +372,7 @@ const categories = [
 ];
 let currentCategory = "Semua";
 let cart = JSON.parse(localStorage.getItem("sembako_cart")) || [];
-let orders = JSON.parse(localStorage.getItem("sembako_orders")) || [];
+let orders = [];
 let isCheckoutSubmitting = false;
 
 let address = JSON.parse(localStorage.getItem("sembako_address")) || {
@@ -397,6 +397,39 @@ function isLoggedIn() {
 
 function getAuthToken() {
   return authSession?.token || null;
+}
+
+function getOrderStorageKey() {
+  if (!authSession?.email && !authSession?.userId) return "sembako_orders_guest";
+  return `sembako_orders_${authSession.userId || authSession.email}`;
+}
+
+function loadCachedOrders() {
+  orders = JSON.parse(localStorage.getItem(getOrderStorageKey())) || [];
+  return orders;
+}
+
+function normalizeServerOrder(order) {
+  return {
+    ...order,
+    tanggal: order.tanggal
+      ? new Date(order.tanggal).toLocaleDateString("id-ID", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "-",
+    items: (order.items || []).map((item) => ({
+      id: item.id || item.produk_id,
+      produk_id: item.produk_id || item.id,
+      nama: item.nama,
+      harga: item.harga,
+      qty: item.qty,
+      img: item.img,
+    })),
+  };
 }
 
 async function apiFetch(path, options = {}) {
@@ -853,7 +886,7 @@ function saveCart() {
 }
 
 function saveOrders() {
-  localStorage.setItem("sembako_orders", JSON.stringify(orders));
+  localStorage.setItem(getOrderStorageKey(), JSON.stringify(orders));
 }
 
 function saveAddress() {
@@ -1018,7 +1051,7 @@ function renderDetailPage() {
     `;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   const isIndex =
     window.location.pathname.includes("index.html") ||
     window.location.pathname === "/";
@@ -1045,7 +1078,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   if (isCart) renderCartPage();
   if (isDetail) renderDetailPage();
-  if (isRiwayat) renderOrderHistory();
+  if (isRiwayat) await renderOrderHistory();
   if (isCheckout) renderCheckoutPage();
   if (isProfile) {
     renderAddressDisplay();
@@ -1245,9 +1278,41 @@ async function addToCart(id) {
   }
 }
 
-function renderOrderHistory() {
+async function loadOrdersFromServer() {
+  if (!isLoggedIn()) {
+    orders = [];
+    return false;
+  }
+
+  const api = await apiFetch("/orders", { silent: true });
+  if (api.ok && Array.isArray(api.data?.orders)) {
+    orders = api.data.orders.map(normalizeServerOrder);
+    saveOrders();
+    return true;
+  }
+
+  loadCachedOrders();
+  return false;
+}
+
+async function renderOrderHistory() {
   const container = document.getElementById("orderList");
   if (!container) return;
+
+  if (!isLoggedIn()) {
+    orders = [];
+    container.innerHTML = `
+            <div class="empty-msg">
+                <p>Silakan login untuk melihat riwayat pesanan.</p>
+                <button onclick="window.location.href='login.html?return=riwayat.html'" class="btn-primary" style="margin-top: 16px;">
+                    Login
+                </button>
+            </div>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="empty-msg"><p>Memuat riwayat pesanan...</p></div>`;
+  await loadOrdersFromServer();
 
   if (orders.length === 0) {
     container.innerHTML = `

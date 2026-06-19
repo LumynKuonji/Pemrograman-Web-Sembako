@@ -1,13 +1,3 @@
-"""
-Market Basket Analysis (MBA) - aturan asosiasi sederhana.
-
-Cara kerja:
-- Setiap aturan punya "trigger" (produk pemicu di keranjang) dan "recommend" (produk disarankan).
-- Saat user punya trigger di keranjang, produk recommend ditampilkan (kecuali sudah ada di keranjang).
-
-Nanti bisa diganti dengan algoritma Apriori dari data transaksi riil.
-"""
-
 MBA_RULES = [
     {
         "id": "paket-beras",

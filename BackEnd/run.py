@@ -1,11 +1,3 @@
-"""
-Cara menjalankan server Flask (dari root project):
-
-    python app.py
-
-Uji endpoint MBA di browser atau terminal:
-    http://localhost:5000/api/recommendations?cart_ids=1
-"""
 import sys
 from pathlib import Path
 

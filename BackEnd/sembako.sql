@@ -1,11 +1,3 @@
--- ============================================================
--- Database: sembako (MySQL / MariaDB)
--- Catatan:
--- - Aplikasi Flask saat ini memakai SQLite: BackEnd/toko_sembako.db
--- - File ini dipakai jika ingin membuat database versi MySQL/MariaDB.
--- - Data runtime aplikasi tetap disimpan lewat SQLAlchemy model di backend.
--- ============================================================
-
 CREATE DATABASE IF NOT EXISTS sembako
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
