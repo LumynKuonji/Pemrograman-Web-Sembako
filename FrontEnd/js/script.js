@@ -543,6 +543,142 @@ function goBackFromLogin() {
   window.location.href = ret || "index.html";
 }
 
+let otpTimer = null;
+let currentLoginTab = 'password';
+
+function startOTPLimit(btnId, seconds = 60) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.disabled = true;
+  let remaining = seconds;
+  btn.textContent = `Kirim Ulang (${remaining}s)`;
+  
+  if (otpTimer) clearInterval(otpTimer);
+  
+  otpTimer = setInterval(() => {
+    remaining--;
+    if (remaining <= 0) {
+      clearInterval(otpTimer);
+      btn.disabled = false;
+      btn.textContent = "Kirim Kode OTP";
+    } else {
+      btn.textContent = `Kirim Ulang (${remaining}s)`;
+    }
+  }, 1000);
+}
+
+function switchLoginTab(mode) {
+  currentLoginTab = mode;
+  const tabPassword = document.getElementById('tabPassword');
+  const tabOTP = document.getElementById('tabOTP');
+  const passwordSection = document.getElementById('passwordSection');
+  const otpSection = document.getElementById('otpSection');
+  
+  if (!tabPassword || !tabOTP) return;
+  
+  if (mode === 'password') {
+    tabPassword.classList.add('active');
+    tabPassword.style.borderBottom = '2px solid #10b981';
+    tabPassword.style.color = '#10b981';
+    tabOTP.classList.remove('active');
+    tabOTP.style.borderBottom = 'none';
+    tabOTP.style.color = '#718096';
+    passwordSection.style.display = 'block';
+    otpSection.style.display = 'none';
+  } else {
+    tabOTP.classList.add('active');
+    tabOTP.style.borderBottom = '2px solid #10b981';
+    tabOTP.style.color = '#10b981';
+    tabPassword.classList.remove('active');
+    tabPassword.style.borderBottom = 'none';
+    tabPassword.style.color = '#718096';
+    passwordSection.style.display = 'none';
+    otpSection.style.display = 'block';
+  }
+}
+
+async function requestLoginOTP() {
+  const email = document.getElementById('loginEmail')?.value.trim().toLowerCase();
+  if (!email) {
+    showPopup({
+      type: 'warn',
+      title: 'Email Kosong',
+      message: 'Masukkan email Anda terlebih dahulu.'
+    });
+    return;
+  }
+  
+  const btn = document.getElementById('btnRequestOTP');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Mengirim...';
+  }
+  
+  const api = await apiFetch('/auth/request-login-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  });
+  
+  if (api.ok) {
+    AppAlert.toast("OTP Login telah dikirim ke email Anda", "top-end", 2500);
+    startOTPLimit('btnRequestOTP', 60);
+  } else {
+    showPopup({
+      type: 'error',
+      title: 'Gagal Kirim OTP',
+      message: api.data.error || 'Gagal mengirim OTP login.'
+    });
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Kirim Kode OTP';
+    }
+  }
+}
+
+async function submitLogin() {
+  if (currentLoginTab === 'password') {
+    await handleLogin();
+  } else {
+    const email = document.getElementById('loginEmail')?.value.trim().toLowerCase();
+    const code = document.getElementById('loginOTP')?.value.trim();
+    if (!email || !code) {
+      showPopup({
+        type: 'warn',
+        title: 'Isian Belum Lengkap',
+        message: 'Email dan Kode OTP wajib diisi.'
+      });
+      return;
+    }
+    if (code.length !== 6) {
+      showPopup({
+        type: 'warn',
+        title: 'OTP Tidak Valid',
+        message: 'Kode OTP harus berupa 6 digit angka.'
+      });
+      return;
+    }
+    
+    const api = await apiFetch('/auth/verify-login-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, code })
+    });
+    
+    if (api.ok && api.data.user) {
+      setAuthSession(api.data.user, api.data.token);
+      window.updateChatbotLock?.();
+      showLoginPopup(api.data.user.nama, false, () => {
+        window.location.href = getReturnUrl() || "index.html";
+      });
+    } else {
+      showPopup({
+        type: 'error',
+        title: 'Masuk Gagal',
+        message: api.data.error || 'Kode OTP salah atau telah kedaluwarsa.'
+      });
+    }
+  }
+}
+
 async function handleLogin() {
   const email = document
     .getElementById("loginEmail")
@@ -567,6 +703,18 @@ async function handleLogin() {
     window.updateChatbotLock?.();
     showLoginPopup(api.data.user.nama, false, () => {
       window.location.href = getReturnUrl() || "index.html";
+    });
+    return;
+  }
+
+  if (api.status === 403 || (api.data && api.data.status === "unverified")) {
+    showPopup({
+      type: "warn",
+      title: "Verifikasi Diperlukan",
+      message: "Akun Anda belum terverifikasi. Kami telah mengirimkan kode OTP verifikasi ke email Anda.",
+      onClose: () => {
+        showOTPVerificationModal(email, getReturnUrl() || "index.html");
+      }
     });
     return;
   }
@@ -649,25 +797,206 @@ async function handleRegister() {
     return;
   }
 
-  const loginRes = await apiFetch("/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  });
-  if (loginRes.ok && loginRes.data.user) {
-    setAuthSession(loginRes.data.user, loginRes.data.token);
-    showLoginPopup(loginRes.data.user.nama, false, () => {
-      window.location.href = "index.html";
-    });
-    return;
-  }
   showPopup({
     type: "success",
     title: "Registrasi Berhasil!",
-    message: "Akun kamu sudah dibuat. Silakan masuk untuk mulai belanja.",
+    message: "Silakan masukkan kode OTP yang dikirim ke email Anda untuk memverifikasi akun.",
     onClose: () => {
-      window.location.href = "login.html";
-    },
+      showOTPVerificationModal(email, "index.html");
+    }
   });
+}
+
+function showOTPVerificationModal(email, returnUrl = 'index.html') {
+  Swal.fire({
+    title: 'Verifikasi Akun Anda',
+    html: 
+      `<p style="font-size: 14px; color: #4a5568; margin-bottom: 15px;">Kami telah mengirimkan 6 digit kode OTP ke email <strong>${email}</strong>. Masukkan kode tersebut untuk memverifikasi akun Anda:</p>` +
+      '<input id="swal-otp" class="swal2-input" placeholder="000000" maxlength="6" style="text-align:center; letter-spacing: 5px; font-weight:bold; font-size: 24px; max-width: 220px; margin: 15px auto;">' +
+      '<div style="margin-top: 15px;"><a href="javascript:void(0)" id="swal-resend-btn" style="color: #10b981; font-weight: 600; font-size: 14px; text-decoration: none;">Kirim Ulang OTP</a></div>',
+    confirmButtonText: 'Verifikasi Akun',
+    confirmButtonColor: '#10b981',
+    allowOutsideClick: false,
+    showCancelButton: true,
+    cancelButtonText: 'Batal',
+    didOpen: () => {
+      const resendBtn = document.getElementById('swal-resend-btn');
+      resendBtn.addEventListener('click', async () => {
+        resendBtn.style.pointerEvents = 'none';
+        resendBtn.style.color = '#718096';
+        resendBtn.textContent = 'Mengirim...';
+        const res = await apiFetch('/auth/resend-otp', {
+          method: 'POST',
+          body: JSON.stringify({ email, otp_type: 'register' })
+        });
+        if (res.ok) {
+          AppAlert.toast("OTP Baru berhasil dikirim!", "top-end", 2500);
+          let count = 30;
+          const interval = setInterval(() => {
+            count--;
+            if (count <= 0) {
+              clearInterval(interval);
+              resendBtn.style.pointerEvents = 'auto';
+              resendBtn.style.color = '#10b981';
+              resendBtn.textContent = 'Kirim Ulang OTP';
+            } else {
+              resendBtn.textContent = `Kirim Ulang (${count}s)`;
+            }
+          }, 1000);
+        } else {
+          AppAlert.toast(res.data.error || "Gagal kirim ulang OTP", "top-end", 2500);
+          resendBtn.style.pointerEvents = 'auto';
+          resendBtn.style.color = '#10b981';
+          resendBtn.textContent = 'Kirim Ulang OTP';
+        }
+      });
+    },
+    preConfirm: () => {
+      const otp = document.getElementById('swal-otp').value.trim();
+      if (!otp || otp.length !== 6) {
+        Swal.showValidationMessage('Masukkan 6 digit kode OTP yang valid');
+        return false;
+      }
+      return otp;
+    }
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      const otp = result.value;
+      Swal.fire({
+        title: 'Memverifikasi...',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+      });
+      const verifyRes = await apiFetch('/auth/verify-register', {
+        method: 'POST',
+        body: JSON.stringify({ email, code: otp })
+      });
+      if (verifyRes.ok && verifyRes.data.user) {
+        setAuthSession(verifyRes.data.user, verifyRes.data.token);
+        Swal.fire({
+          icon: 'success',
+          title: 'Verifikasi Berhasil!',
+          text: 'Akun Anda aktif dan Anda berhasil masuk.',
+          confirmButtonColor: '#10b981'
+        }).then(() => {
+          window.location.href = returnUrl;
+        });
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Verifikasi Gagal',
+          text: verifyRes.data.error || 'Kode OTP salah atau kedaluwarsa.',
+          confirmButtonText: 'Coba Lagi',
+          confirmButtonColor: '#10b981'
+        }).then(() => {
+          showOTPVerificationModal(email, returnUrl);
+        });
+      }
+    }
+  });
+}
+
+async function handleForgotPassword() {
+  const { value: email } = await Swal.fire({
+    title: 'Lupa Password',
+    input: 'email',
+    inputLabel: 'Masukkan email terdaftar Anda',
+    inputPlaceholder: 'contoh: email@anda.com',
+    confirmButtonText: 'Kirim OTP',
+    confirmButtonColor: '#10b981',
+    showCancelButton: true,
+    cancelButtonText: 'Batal'
+  });
+
+  if (!email) return;
+
+  Swal.fire({
+    title: 'Mengirim...',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+
+  const res = await apiFetch('/auth/request-reset-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  });
+
+  if (!res.ok) {
+    showPopup({
+      type: 'error',
+      title: 'Gagal',
+      message: res.data.error || 'Terjadi kesalahan saat meminta OTP reset.'
+    });
+    return;
+  }
+
+  const { value: formValues } = await Swal.fire({
+    title: 'Atur Ulang Password',
+    html:
+      `<p style="font-size:14px;color:#718096;margin-bottom:15px;">Kode OTP telah dikirim ke <strong>${email}</strong></p>` +
+      '<input id="reset-otp" class="swal2-input" placeholder="Kode OTP (6 digit)" maxlength="6" style="text-align:center;letter-spacing:3px;">' +
+      '<input id="reset-password" type="password" class="swal2-input" placeholder="Password Baru (min 6 karakter)">' +
+      '<input id="reset-confirm" type="password" class="swal2-input" placeholder="Ulangi Password Baru">',
+    focusConfirm: false,
+    confirmButtonText: 'Simpan Password Baru',
+    confirmButtonColor: '#10b981',
+    showCancelButton: true,
+    cancelButtonText: 'Batal',
+    preConfirm: () => {
+      const code = document.getElementById('reset-otp').value.trim();
+      const password = document.getElementById('reset-password').value;
+      const confirm = document.getElementById('reset-confirm').value;
+
+      if (!code || code.length !== 6) {
+        Swal.showValidationMessage('Masukkan 6 digit kode OTP');
+        return false;
+      }
+      if (!password || password.length < 6) {
+        Swal.showValidationMessage('Password minimal 6 karakter');
+        return false;
+      }
+      if (password !== confirm) {
+        Swal.showValidationMessage('Konfirmasi password tidak sesuai');
+        return false;
+      }
+      return { code, password };
+    }
+  });
+
+  if (!formValues) return;
+
+  Swal.fire({
+    title: 'Memproses...',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+
+  const resetRes = await apiFetch('/auth/verify-reset-otp', {
+    method: 'POST',
+    body: JSON.stringify({
+      email,
+      code: formValues.code,
+      password: formValues.password
+    })
+  });
+
+  if (resetRes.ok) {
+    showPopup({
+      type: 'success',
+      title: 'Berhasil!',
+      message: 'Password Anda berhasil diperbarui. Silakan login menggunakan password baru Anda.'
+    });
+  } else {
+    showPopup({
+      type: 'error',
+      title: 'Gagal Reset',
+      message: resetRes.data.error || 'Gagal mengubah password Anda.'
+    });
+  }
 }
 
 async function doLogout() {
@@ -1432,7 +1761,12 @@ function renderUserProfile() {
   const nameEl = document.querySelector(".profile-name");
   const emailEl = document.querySelector(".profile-email");
   const avatarEl = document.querySelector(".avatar");
-  if (nameEl) nameEl.textContent = profile.nama;
+  if (nameEl) {
+    nameEl.textContent = profile.nama;
+    if (isLoggedIn() && profile.is_verified) {
+      nameEl.innerHTML = profile.nama + ' <span class="verified-badge" style="display: inline-flex; align-items: center; justify-content: center; background: #d1fae5; color: #065f46; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 9999px; margin-left: 6px; vertical-align: middle;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg> Terverifikasi</span>';
+    }
+  }
   if (emailEl) emailEl.textContent = profile.email;
   if (avatarEl) avatarEl.src = profile.foto;
 }

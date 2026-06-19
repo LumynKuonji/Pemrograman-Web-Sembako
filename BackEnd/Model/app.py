@@ -36,6 +36,7 @@ def seed_demo_user():
         password_hash=generate_password_hash("123456"),
         telepon="+62 812-7891-6777",
         foto="https://i.pravatar.cc/150?img=68",
+        is_verified=True,
     )
     db.session.add(demo)
     db.session.commit()
