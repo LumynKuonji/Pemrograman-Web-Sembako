@@ -1,11 +1,22 @@
 from pathlib import Path
+from dotenv import load_dotenv
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
+
+# Load .env file dari root proyek
+ENV_PATH = BACKEND_ROOT.parent / ".env"
+if ENV_PATH.exists():
+    load_dotenv(ENV_PATH)
+    print(f"📧 Email config dimuat dari {ENV_PATH}")
+else:
+    print(f"⚠️  File .env tidak ditemukan di {ENV_PATH}")
+    print("   Buat file .env dari .env.example untuk mengaktifkan fitur email")
 
 from flask import Flask
 from BackEnd.Database.database import Produk, User, db
 from BackEnd.Model.products import PRODUCT_SEEDS
 from BackEnd.View.routes import register_routes
+from BackEnd.Services.email_service import init_mail
 from werkzeug.security import generate_password_hash
 
 
@@ -14,9 +25,16 @@ def create_app():
     db_path = BACKEND_ROOT / "toko_sembako.db"
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path.as_posix()}"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["SECRET_KEY"] = "sembako-dev-secret-change-in-production"
+    
+    # Gunakan SECRET_KEY dari .env jika ada, fallback ke default
+    import os
+    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "sembako-dev-secret-change-in-production")
 
     db.init_app(app)
+    
+    # Inisialisasi Flask-Mail
+    init_mail(app)
+    
     register_routes(app)
 
     with app.app_context():

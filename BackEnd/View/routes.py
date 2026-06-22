@@ -1,4 +1,10 @@
-from flask import Blueprint, jsonify, request
+"""
+Routes API untuk Toko Sembako AI
+Termasuk endpoint baru untuk email service, OTP, forgot password, invoice, dll.
+"""
+import os
+from datetime import datetime
+from flask import Blueprint, jsonify, request, send_file
 from BackEnd.Controller import (
     auth_controller,
     chatbot_controller,
@@ -7,7 +13,8 @@ from BackEnd.Controller import (
     pesanan_controller,
     produk_controller,
 )
-from BackEnd.Database.database import PesananItem, Produk
+from BackEnd.Database.database import PesananItem, Pesanan, Produk, User, EmailLog, db
+from BackEnd.Services.email_service import send_invoice_email, send_order_status_email
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -23,8 +30,17 @@ def _get_user_from_request():
     return None
 
 
+# ============================================
+# AUTH ENDPOINTS
+# ============================================
+
 @api_bp.route("/auth/register", methods=["POST", "OPTIONS"])
 def api_register():
+    """
+    POST /api/auth/register
+    Body: { "nama": "...", "email": "...", "password": "...", "telepon": "..." }
+    Response: { "status": "success", "message": "OTP telah dikirim ke email", "user": {...} }
+    """
     if request.method == "OPTIONS":
         return _cors_preflight()
     data = request.json or {}
@@ -37,11 +53,47 @@ def api_register():
     user, err = auth_controller.register_user(nama, email, password, telepon)
     if err:
         return jsonify({"error": err}), 400
-    return jsonify({"status": "success", "user": user.to_dict()}), 201
+    return jsonify({
+        "status": "success",
+        "message": "OTP telah dikirim ke email Anda. Silakan verifikasi.",
+        "user": user.to_dict()
+    }), 201
+
+
+@api_bp.route("/auth/verify-otp", methods=["POST", "OPTIONS"])
+def api_verify_otp():
+    """
+    POST /api/auth/verify-otp
+    Body: { "email": "...", "otp_code": "123456" }
+    Response: { "status": "success", "message": "Email berhasil diverifikasi" }
+    """
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    data = request.json or {}
+    email = data.get("email", "")
+    otp_code = data.get("otp_code", "")
+    
+    if not email or not otp_code:
+        return jsonify({"error": "Email dan OTP wajib diisi"}), 400
+    
+    success, err = auth_controller.verify_registration_otp(email, otp_code)
+    if err:
+        return jsonify({"error": err}), 400
+    
+    return jsonify({
+        "status": "success",
+        "message": "Email berhasil diverifikasi! Silakan login."
+    })
 
 
 @api_bp.route("/auth/login", methods=["POST", "OPTIONS"])
 def api_login():
+    """
+    POST /api/auth/login
+    Body: { "email": "...", "password": "..." }
+    Response: { "status": "success", "otp_required": true, "message": "OTP telah dikirim" }
+    atau: { "status": "success", "token": "...", "user": {...} }
+    """
     if request.method == "OPTIONS":
         return _cors_preflight()
     data = request.json or {}
@@ -51,6 +103,13 @@ def api_login():
         return jsonify({"error": "Email dan password wajib diisi"}), 400
     user, token, err = auth_controller.login_user(email, password)
     if err:
+        if err == "OTP_REQUIRED":
+            return jsonify({
+                "status": "success",
+                "otp_required": True,
+                "message": "OTP telah dikirim ke email Anda",
+                "email": email
+            })
         return jsonify({"error": err}), 401
     return jsonify({
         "status": "success",
@@ -59,8 +118,36 @@ def api_login():
     })
 
 
+@api_bp.route("/auth/verify-login-otp", methods=["POST", "OPTIONS"])
+def api_verify_login_otp():
+    """
+    POST /api/auth/verify-login-otp
+    Body: { "email": "...", "otp_code": "123456" }
+    Response: { "status": "success", "token": "...", "user": {...} }
+    """
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    data = request.json or {}
+    email = data.get("email", "")
+    otp_code = data.get("otp_code", "")
+    
+    if not email or not otp_code:
+        return jsonify({"error": "Email dan OTP wajib diisi"}), 400
+    
+    user, token, err = auth_controller.verify_login_otp(email, otp_code)
+    if err:
+        return jsonify({"error": err}), 401
+    
+    return jsonify({
+        "status": "success",
+        "token": token,
+        "user": user.to_dict()
+    })
+
+
 @api_bp.route("/auth/logout", methods=["POST", "OPTIONS"])
 def api_logout():
+    """POST /api/auth/logout - Logout user"""
     if request.method == "OPTIONS":
         return _cors_preflight()
     auth = request.headers.get("Authorization", "")
@@ -71,6 +158,7 @@ def api_logout():
 
 @api_bp.route("/auth/me", methods=["GET", "OPTIONS"])
 def api_me():
+    """GET /api/auth/me - Get current user info"""
     if request.method == "OPTIONS":
         return _cors_preflight()
     user = _get_user_from_request()
@@ -78,11 +166,125 @@ def api_me():
         return jsonify({"error": "Belum login"}), 401
     return jsonify({"user": user.to_dict()})
 
+
+# ============================================
+# FORGOT PASSWORD ENDPOINTS
+# ============================================
+
+@api_bp.route("/auth/forgot-password", methods=["POST", "OPTIONS"])
+def api_forgot_password():
+    """
+    POST /api/auth/forgot-password
+    Body: { "email": "..." }
+    Response: { "status": "success", "message": "OTP telah dikirim ke email" }
+    """
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    data = request.json or {}
+    email = data.get("email", "")
+    if not email:
+        return jsonify({"error": "Email wajib diisi"}), 400
+    
+    success, err = auth_controller.forgot_password_request(email)
+    if err:
+        return jsonify({"error": err}), 400
+    
+    return jsonify({
+        "status": "success",
+        "message": "Jika email terdaftar, OTP akan dikirim ke email Anda"
+    })
+
+
+@api_bp.route("/auth/verify-forgot-otp", methods=["POST", "OPTIONS"])
+def api_verify_forgot_otp():
+    """
+    POST /api/auth/verify-forgot-otp
+    Body: { "email": "...", "otp_code": "123456" }
+    Response: { "status": "success", "message": "OTP valid. Silakan reset password" }
+    """
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    data = request.json or {}
+    email = data.get("email", "")
+    otp_code = data.get("otp_code", "")
+    
+    if not email or not otp_code:
+        return jsonify({"error": "Email dan OTP wajib diisi"}), 400
+    
+    success, err = auth_controller.verify_forgot_password_otp(email, otp_code)
+    if err:
+        return jsonify({"error": err}), 400
+    
+    return jsonify({
+        "status": "success",
+        "message": "OTP valid. Silakan masukkan password baru."
+    })
+
+
+@api_bp.route("/auth/reset-password", methods=["POST", "OPTIONS"])
+def api_reset_password():
+    """
+    POST /api/auth/reset-password
+    Body: { "email": "...", "new_password": "..." }
+    Response: { "status": "success", "message": "Password berhasil diubah" }
+    """
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    data = request.json or {}
+    email = data.get("email", "")
+    new_password = data.get("new_password", "")
+    
+    if not email or not new_password:
+        return jsonify({"error": "Email dan password baru wajib diisi"}), 400
+    
+    success, err = auth_controller.reset_password(email, new_password)
+    if err:
+        return jsonify({"error": err}), 400
+    
+    return jsonify({
+        "status": "success",
+        "message": "Password berhasil diubah. Silakan login dengan password baru."
+    })
+
+
+# ============================================
+# RESEND OTP ENDPOINT
+# ============================================
+
+@api_bp.route("/auth/resend-otp", methods=["POST", "OPTIONS"])
+def api_resend_otp():
+    """
+    POST /api/auth/resend-otp
+    Body: { "email": "...", "otp_type": "register|login|forgot_password" }
+    Response: { "status": "success", "message": "OTP telah dikirim ulang" }
+    """
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    data = request.json or {}
+    email = data.get("email", "")
+    otp_type = data.get("otp_type", "register")
+    
+    if not email:
+        return jsonify({"error": "Email wajib diisi"}), 400
+    
+    success, err = auth_controller.resend_otp(email, otp_type)
+    if err:
+        return jsonify({"error": err}), 400
+    
+    return jsonify({
+        "status": "success",
+        "message": "OTP telah dikirim ulang ke email Anda"
+    })
+
+
+# ============================================
+# PRODUCT ENDPOINTS
+# ============================================
+
 @api_bp.route('/products', methods=['GET'])
 def api_products():
     """
-    Endpoint: GET /api/products?kategori=Bahan+Pokok&search=Indomie
-    Logic: Memanggil controller untuk memfilter data.
+    GET /api/products?kategori=Bahan+Pokok&search=Indomie
     """
     kategori = request.args.get('kategori', 'Semua')
     search = request.args.get('search', '')
@@ -94,22 +296,22 @@ def api_products():
         
     return jsonify([p.to_dict() for p in data])
 
+
+# ============================================
+# CART ENDPOINTS
+# ============================================
+
 @api_bp.route('/cart', methods=['GET'])
 def api_cart_get():
-    """
-    Endpoint: GET /api/cart
-    Logic: Mengambil isi keranjang dari database.
-    """
+    """GET /api/cart - Get cart items"""
     user = _get_user_from_request()
     uid = user.id if user else None
     return jsonify(keranjang_controller.get_isi_keranjang(uid))
 
+
 @api_bp.route('/cart', methods=['POST'])
 def api_cart_add():
-    """
-    Endpoint: POST /api/cart { "produk_id": 1, "qty": 1 }
-    Logic: Menambah barang ke database.
-    """
+    """POST /api/cart { "produk_id": 1, "qty": 1 }"""
     data = request.json
     if not data or 'produk_id' not in data:
         return jsonify({'error': 'ID Produk diperlukan'}), 400
@@ -119,24 +321,33 @@ def api_cart_add():
     keranjang_controller.tambah_ke_keranjang(data["produk_id"], data.get("qty", 1), uid)
     return jsonify({"status": "success", "cart": keranjang_controller.get_isi_keranjang(uid)})
 
+
 @api_bp.route('/cart/<int:produk_id>', methods=['PUT'])
 def api_cart_update(produk_id):
-    """
-    Endpoint: PUT /api/cart/1 { "qty": 5 }
-    Logic: Update jumlah barang.
-    """
+    """PUT /api/cart/1 { "qty": 5 }"""
     data = request.json
     user = _get_user_from_request()
     uid = user.id if user else None
     keranjang_controller.update_qty_keranjang(produk_id, data.get("qty", 0), uid)
     return jsonify({"status": "success", "cart": keranjang_controller.get_isi_keranjang(uid)})
 
+
+@api_bp.route('/cart/clear', methods=['POST'])
+def api_cart_clear():
+    """POST /api/cart/clear - Clear cart"""
+    user = _get_user_from_request()
+    uid = user.id if user else None
+    keranjang_controller.kosongkan_keranjang(uid)
+    return jsonify({"status": "success"})
+
+
+# ============================================
+# RECOMMENDATIONS ENDPOINTS
+# ============================================
+
 @api_bp.route('/recommendations', methods=['GET'])
 def api_recommendations():
-    """
-    Endpoint: GET /api/recommendations?cart_ids=1,25
-    Logic: Rekomendasi MBA berdasarkan isi keranjang.
-    """
+    """GET /api/recommendations?cart_ids=1,25"""
     cart_ids_param = request.args.get('cart_ids', '')
     cart_ids = []
     if cart_ids_param:
@@ -152,9 +363,14 @@ def api_recommendations():
     ]
     return jsonify(result)
 
+
+# ============================================
+# CHATBOT ENDPOINTS
+# ============================================
+
 @api_bp.route("/chat/models", methods=["GET", "OPTIONS"])
 def api_chat_models():
-    """Daftar model NVIDIA yang tersedia untuk API key Anda."""
+    """GET /api/chat/models - List available AI models"""
     if request.method == "OPTIONS":
         return _cors_preflight()
     provider, base_url, api_key, current = chatbot_controller.get_ai_config()
@@ -168,6 +384,7 @@ def api_chat_models():
 
 @api_bp.route("/chat/status", methods=["GET", "OPTIONS"])
 def api_chat_status():
+    """GET /api/chat/status - Check AI configuration status"""
     if request.method == "OPTIONS":
         return _cors_preflight()
     provider, base_url, _, model = chatbot_controller.get_ai_config()
@@ -181,6 +398,7 @@ def api_chat_status():
 
 @api_bp.route("/chat", methods=["POST", "OPTIONS"])
 def api_chat():
+    """POST /api/chat - Chat with AI"""
     if request.method == "OPTIONS":
         return _cors_preflight()
 
@@ -200,20 +418,15 @@ def api_chat():
     return jsonify({"reply": reply, "user": user.nama})
 
 
-@api_bp.route('/cart/clear', methods=['POST'])
-def api_cart_clear():
-    """
-    Endpoint: POST /api/cart/clear
-    Logic: Checkout -> Kosongkan keranjang.
-    """
-    user = _get_user_from_request()
-    uid = user.id if user else None
-    keranjang_controller.kosongkan_keranjang(uid)
-    return jsonify({"status": "success"})
-
+# ============================================
+# ORDER / CHECKOUT ENDPOINTS
+# ============================================
 
 @api_bp.route("/orders", methods=["GET", "OPTIONS"])
 def api_orders():
+    """
+    GET /api/orders - Get user's order history
+    """
     if request.method == "OPTIONS":
         return _cors_preflight()
     user = _get_user_from_request()
@@ -225,6 +438,7 @@ def api_orders():
         items = PesananItem.query.filter_by(pesanan_id=order.id).all()
         data.append({
             "id": order.kode_pesanan,
+            "invoice_number": order.invoice_number,
             "tanggal": order.created_at.isoformat(),
             "total": order.total_harga,
             "status": order.status,
@@ -244,6 +458,10 @@ def api_orders():
 
 @api_bp.route("/orders/checkout", methods=["POST", "OPTIONS"])
 def api_checkout():
+    """
+    POST /api/orders/checkout
+    Body: { "metode_bayar": "COD", "ongkir": 10000, "alamat": {...} }
+    """
     if request.method == "OPTIONS":
         return _cors_preflight()
     user = _get_user_from_request()
@@ -254,16 +472,174 @@ def api_checkout():
     if err:
         return jsonify({"error": err}), 400
 
+    # Kirim email invoice
+    try:
+        items = PesananItem.query.filter_by(pesanan_id=order.id).all()
+        invoice_data = {
+            "invoice_number": order.invoice_number,
+            "order_date": order.created_at.strftime("%d %B %Y, %H:%M") + " WIB",
+            "items": [{"nama": i.nama_produk, "harga": i.harga, "qty": i.qty, "subtotal": i.subtotal} for i in items],
+            "subtotal": sum(i.subtotal for i in items),
+            "ongkir": order.ongkir or 0,
+            "total": order.total_harga,
+            "payment_method": order.metode_bayar,
+            "alamat_lengkap": order.alamat_lengkap,
+            "kecamatan": order.kecamatan,
+            "kota": order.kota,
+            "kode_pos": order.kode_pos,
+            "status": order.status,
+        }
+        send_invoice_email(user.email, user.nama, invoice_data)
+    except Exception as e:
+        # Jangan gagalkan checkout jika email gagal
+        pass
+
     return jsonify({
         "status": "success",
         "order": {
             "id": order.kode_pesanan,
+            "invoice_number": order.invoice_number,
             "total": order.total_harga,
             "status": order.status,
             "paymentMethod": order.metode_bayar,
         },
     }), 201
 
+
+@api_bp.route("/orders/<invoice_number>", methods=["GET", "OPTIONS"])
+def api_order_detail(invoice_number):
+    """
+    GET /api/orders/INV-XXXXX - Get order detail by invoice number
+    """
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    user = _get_user_from_request()
+    if not user:
+        return jsonify({"error": "Belum login"}), 401
+
+    order = Pesanan.query.filter_by(invoice_number=invoice_number, user_id=user.id).first()
+    if not order:
+        return jsonify({"error": "Pesanan tidak ditemukan"}), 404
+
+    items = PesananItem.query.filter_by(pesanan_id=order.id).all()
+    return jsonify({
+        "order": {
+            "id": order.kode_pesanan,
+            "invoice_number": order.invoice_number,
+            "tanggal": order.created_at.isoformat(),
+            "total": order.total_harga,
+            "subtotal": sum(i.subtotal for i in items),
+            "ongkir": order.ongkir or 0,
+            "status": order.status,
+            "paymentMethod": order.metode_bayar,
+            "alamat_lengkap": order.alamat_lengkap,
+            "kecamatan": order.kecamatan,
+            "kota": order.kota,
+            "kode_pos": order.kode_pos,
+            "catatan": order.catatan,
+            "items": [
+                {
+                    "produk_id": item.produk_id,
+                    "nama": item.nama_produk,
+                    "harga": item.harga,
+                    "qty": item.qty,
+                    "subtotal": item.subtotal,
+                }
+                for item in items
+            ],
+        }
+    })
+
+
+@api_bp.route("/orders/<invoice_number>/status", methods=["PUT", "OPTIONS"])
+def api_update_order_status(invoice_number):
+    """
+    PUT /api/orders/INV-XXXXX/status
+    Body: { "status": "Sedang Diproses" }
+    """
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    user = _get_user_from_request()
+    if not user:
+        return jsonify({"error": "Belum login"}), 401
+
+    data = request.json or {}
+    new_status = data.get("status", "")
+    valid_statuses = ["Pesanan Diterima", "Sedang Diproses", "Sedang Dikirim", "Pesanan Selesai", "Pesanan Dibatalkan"]
+    
+    if new_status not in valid_statuses:
+        return jsonify({"error": f"Status tidak valid. Pilihan: {', '.join(valid_statuses)}"}), 400
+
+    order = Pesanan.query.filter_by(invoice_number=invoice_number, user_id=user.id).first()
+    if not order:
+        return jsonify({"error": "Pesanan tidak ditemukan"}), 404
+
+    old_status = order.status
+    order.status = new_status
+    order.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    # Kirim email notifikasi perubahan status
+    try:
+        send_order_status_email(user.email, user.nama, order.invoice_number, old_status, new_status)
+    except Exception as e:
+        pass
+
+    return jsonify({
+        "status": "success",
+        "message": f"Status pesanan diubah dari '{old_status}' menjadi '{new_status}'"
+    })
+
+
+@api_bp.route("/orders/<invoice_number>/invoice", methods=["GET", "OPTIONS"])
+def api_download_invoice(invoice_number):
+    """
+    GET /api/orders/INV-XXXXX/invoice - Download invoice as PDF
+    """
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    user = _get_user_from_request()
+    if not user:
+        return jsonify({"error": "Belum login"}), 401
+
+    order = Pesanan.query.filter_by(invoice_number=invoice_number, user_id=user.id).first()
+    if not order:
+        return jsonify({"error": "Pesanan tidak ditemukan"}), 404
+
+    try:
+        pdf_file = pesanan_controller.generate_invoice_pdf(order)
+        return send_file(
+            pdf_file,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'invoice_{invoice_number}.pdf'
+        )
+    except Exception as e:
+        return jsonify({"error": f"Gagal generate PDF: {str(e)}"}), 500
+
+
+# ============================================
+# EMAIL LOG ENDPOINT
+# ============================================
+
+@api_bp.route("/email-logs", methods=["GET", "OPTIONS"])
+def api_email_logs():
+    """
+    GET /api/email-logs - Get email sending history
+    """
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    user = _get_user_from_request()
+    if not user:
+        return jsonify({"error": "Belum login"}), 401
+
+    logs = EmailLog.query.filter_by(recipient=user.email).order_by(EmailLog.sent_at.desc()).limit(50).all()
+    return jsonify({"logs": [log.to_dict() for log in logs]})
+
+
+# ============================================
+# REGISTER ROUTES
+# ============================================
 
 def register_routes(app):
     app.register_blueprint(api_bp)
