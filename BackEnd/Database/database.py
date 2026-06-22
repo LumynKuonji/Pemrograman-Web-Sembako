@@ -13,11 +13,24 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     telepon = db.Column(db.String(30))
     foto = db.Column(db.String(500))
+    
+    # Email verification fields
+    email_verified = db.Column(db.Boolean, default=False)
+    otp_code = db.Column(db.String(6))
+    otp_expired_at = db.Column(db.DateTime)
+    otp_attempt = db.Column(db.Integer, default=0)
+    otp_type = db.Column(db.String(20))  # 'register', 'login', 'forgot_password'
+    last_otp_sent = db.Column(db.DateTime)
+    
+    # Security fields
+    last_login = db.Column(db.DateTime)
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     sessions = db.relationship("UserSession", backref="user", lazy=True, cascade="all, delete-orphan")
     keranjang_items = db.relationship("ItemKeranjang", backref="user", lazy=True, cascade="all, delete-orphan")
+    orders = db.relationship("Pesanan", backref="user", lazy=True)
 
     def to_dict(self, include_email=True):
         data = {
@@ -99,10 +112,23 @@ class Pesanan(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     kode_pesanan = db.Column(db.String(32), nullable=False, unique=True)
+    invoice_number = db.Column(db.String(50), nullable=False, unique=True)
     total_harga = db.Column(db.Integer, nullable=False)
-    status = db.Column(db.String(50), nullable=False, default="Sedang Diproses")
+    status = db.Column(db.String(50), nullable=False, default="Pesanan Diterima")
     metode_bayar = db.Column(db.String(50), default="COD")
+    
+    # Shipping information
+    alamat_lengkap = db.Column(db.Text)
+    kecamatan = db.Column(db.String(80))
+    kota = db.Column(db.String(80))
+    kode_pos = db.Column(db.String(10))
+    catatan = db.Column(db.String(255))
+    ongkir = db.Column(db.Integer, default=0)
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    items = db.relationship("PesananItem", backref="pesanan", lazy=True, cascade="all, delete-orphan")
 
 
 class PesananItem(db.Model):
@@ -114,3 +140,32 @@ class PesananItem(db.Model):
     nama_produk = db.Column(db.String(100), nullable=False)
     harga = db.Column(db.Integer, nullable=False)
     qty = db.Column(db.Integer, nullable=False)
+    
+    produk = db.relationship("Produk", backref="pesanan_items")
+    
+    @property
+    def subtotal(self):
+        return self.harga * self.qty
+
+
+class EmailLog(db.Model):
+    """Log untuk tracking email yang dikirim"""
+    __tablename__ = "email_log"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    recipient = db.Column(db.String(255), nullable=False, index=True)
+    subject = db.Column(db.String(255), nullable=False)
+    email_type = db.Column(db.String(50), nullable=False)  # 'otp', 'invoice', 'status', 'security'
+    status = db.Column(db.String(20), default="sent")  # 'sent', 'failed'
+    error_message = db.Column(db.Text)
+    sent_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "recipient": self.recipient,
+            "subject": self.subject,
+            "type": self.email_type,
+            "status": self.status,
+            "sent_at": self.sent_at.isoformat() if self.sent_at else None,
+        }
