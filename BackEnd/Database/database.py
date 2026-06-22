@@ -13,6 +13,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     telepon = db.Column(db.String(30))
     foto = db.Column(db.String(500))
+<<<<<<< HEAD
     
     # Email verification fields
     email_verified = db.Column(db.Boolean, default=False)
@@ -25,6 +26,13 @@ class User(db.Model):
     # Security fields
     last_login = db.Column(db.DateTime)
     
+=======
+    is_verified = db.Column(db.Boolean, default=False, nullable=False)
+    otp_code = db.Column(db.String(6), nullable=True)
+    otp_expiry = db.Column(db.DateTime, nullable=True)
+    otp_type = db.Column(db.String(20), nullable=True) # 'register', 'login', 'reset'
+
+>>>>>>> bc0df1f6c86a39764f703ac9b37b277b601a4df4
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -38,6 +46,7 @@ class User(db.Model):
             "nama": self.nama,
             "telepon": self.telepon,
             "foto": self.foto,
+            "is_verified": self.is_verified,
         }
         if include_email:
             data["email"] = self.email

@@ -31,6 +31,48 @@
       </div>
     </header>
 
+    <style>
+      .login-tabs {
+        display: flex;
+        margin-bottom: 25px;
+        border-bottom: 2px solid #e2e8f0;
+      }
+      .tab-btn {
+        flex: 1;
+        padding: 12px;
+        background: none;
+        border: none;
+        font-weight: 600;
+        font-size: 14px;
+        color: #718096;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+      }
+      .tab-btn.active {
+        color: #10b981;
+        border-bottom: 3px solid #10b981;
+        margin-bottom: -2px;
+      }
+      .btn-secondary {
+        background-color: #f3f4f6;
+        color: #374151;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+      .btn-secondary:hover {
+        background-color: #e5e7eb;
+      }
+      .btn-secondary:disabled {
+        background-color: #f3f4f6;
+        color: #9ca3af;
+        cursor: not-allowed;
+      }
+    </style>
+
     <div class="container login-page">
       <h1 class="page-title">Masuk Akun</h1>
       <p class="login-subtitle">
@@ -38,6 +80,12 @@
       </p>
 
       <div class="login-card">
+        <!-- Tab selector -->
+        <div class="login-tabs">
+          <button id="tabPassword" class="tab-btn active" onclick="switchLoginTab('password')">Dengan Password</button>
+          <button id="tabOTP" class="tab-btn" onclick="switchLoginTab('otp')">Dengan OTP (Email)</button>
+        </div>
+
         <label>Email</label>
         <input
           type="email"
@@ -46,15 +94,38 @@
           autocomplete="email"
         />
 
-        <label>Password</label>
-        <input
-          type="password"
-          id="loginPassword"
-          placeholder="Minimal 6 karakter"
-          autocomplete="current-password"
-        />
+        <!-- Password section -->
+        <div id="passwordSection">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <label style="margin-bottom: 0;">Password</label>
+            <a href="javascript:void(0)" onclick="handleForgotPassword()" style="font-size: 13px; color: #10b981; text-decoration: none; font-weight: 600;">Lupa Password?</a>
+          </div>
+          <input
+            type="password"
+            id="loginPassword"
+            placeholder="Minimal 6 karakter"
+            autocomplete="current-password"
+            style="margin-top: 8px;"
+          />
+        </div>
 
-        <button class="btn-primary login-btn" onclick="handleLogin()">
+        <!-- OTP section (hidden by default) -->
+        <div id="otpSection" style="display: none; margin-top: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label style="margin-bottom: 0;">Verifikasi OTP</label>
+            <button class="btn-secondary" id="btnRequestOTP" onclick="requestLoginOTP()" style="padding: 6px 12px; font-size: 12px; white-space: nowrap;">Kirim Kode OTP</button>
+          </div>
+          
+          <input
+            type="text"
+            id="loginOTP"
+            placeholder="Masukkan 6 digit OTP"
+            maxlength="6"
+            style="letter-spacing: 4px; text-align: center; font-size: 18px; font-weight: bold; margin-top: 8px;"
+          />
+        </div>
+
+        <button class="btn-primary login-btn" onclick="submitLogin()" style="margin-top: 20px;">
           Masuk
         </button>
 
@@ -63,9 +134,9 @@
         </p>
 
         <div class="login-hint">
-          <strong>Akun demo (setelah jalankan Flask):</strong><br />
-          Email: moreno@gmail.com<br />
-          Password: 123456
+          <strong>Sistem Terintegrasi Mail:</strong><br />
+          Email OTP / verifikasi dikirim nyata (jika SMTP aktif) atau tersimulasi di folder:<br />
+          <code style="word-break: break-all; background: #edf2f7; padding: 2px 6px; border-radius: 4px; font-size: 11px;">BackEnd/sent_emails/</code>
         </div>
       </div>
     </div>
@@ -76,11 +147,13 @@
     <script>
       document.addEventListener("DOMContentLoaded", () => {
         if (isLoggedIn()) window.location.href = getReturnUrl() || "index.html";
-        document
-          .getElementById("loginPassword")
-          ?.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") handleLogin();
-          });
+        
+        document.getElementById("loginPassword")?.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") submitLogin();
+        });
+        document.getElementById("loginOTP")?.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") submitLogin();
+        });
       });
     </script>
   </body>
