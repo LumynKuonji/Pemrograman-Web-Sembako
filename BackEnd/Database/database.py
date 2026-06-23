@@ -14,21 +14,28 @@ class User(db.Model):
     telepon = db.Column(db.String(30))
     foto = db.Column(db.String(500))
     
-    # Email verification fields
-    email_verified = db.Column(db.Boolean, default=False)
-    otp_code = db.Column(db.String(6))
-    otp_expired_at = db.Column(db.DateTime)
-    otp_attempt = db.Column(db.Integer, default=0)
-    otp_type = db.Column(db.String(20))  # 'register', 'login', 'forgot_password'
-    last_otp_sent = db.Column(db.DateTime)
-    
-    # Security fields
-    last_login = db.Column(db.DateTime)
- 
+    # Verification & Security fields
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
     otp_code = db.Column(db.String(6), nullable=True)
     otp_expiry = db.Column(db.DateTime, nullable=True)
     otp_type = db.Column(db.String(20), nullable=True) 
+    last_login = db.Column(db.DateTime)
+
+    @property
+    def email_verified(self):
+        return self.is_verified
+
+    @email_verified.setter
+    def email_verified(self, value):
+        self.is_verified = value
+
+    @property
+    def otp_expired_at(self):
+        return self.otp_expiry
+
+    @otp_expired_at.setter
+    def otp_expired_at(self, value):
+        self.otp_expiry = value
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

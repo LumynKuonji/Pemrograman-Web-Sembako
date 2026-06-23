@@ -7,12 +7,8 @@ import random
 from datetime import datetime, timedelta
 from werkzeug.security import check_password_hash, generate_password_hash
 from BackEnd.Database.database import User, UserSession, db
-<<<<<<< HEAD
-from BackEnd.Controller.otp_controller import create_and_send_otp, verify_otp, clear_otp
-from BackEnd.Services.email_service import send_security_email
-=======
 from BackEnd.Services import mail_service
->>>>>>> bc0df1f6c86a39764f703ac9b37b277b601a4df4
+from BackEnd.Services.email_service import send_security_email
 
 def generate_digit_otp(length=6):
     return "".join(random.choices("0123456789", k=length))
@@ -40,11 +36,7 @@ def register_user(nama, email, password, telepon=None, foto=None):
         password_hash=generate_password_hash(password),
         telepon=telepon,
         foto=foto,
-<<<<<<< HEAD
-        email_verified=False,
-=======
         is_verified=False
->>>>>>> bc0df1f6c86a39764f703ac9b37b277b601a4df4
     )
     
     # Generate registration verification OTP
@@ -131,37 +123,6 @@ def login_user(email, password):
     if not user or not check_password_hash(user.password_hash, password):
         return None, None, "Email atau password salah"
     
-    # Cek apakah email sudah diverifikasi
-    if not user.email_verified:
-        return None, None, "Email belum diverifikasi. Silakan verifikasi terlebih dahulu"
-    
-    # Generate dan kirim OTP untuk 2FA
-    success, error = create_and_send_otp(user, otp_type='login')
-    if not success:
-        return None, None, error
-    
-    return user, None, "OTP_REQUIRED"
-
-<<<<<<< HEAD
-
-def verify_login_otp(email, otp_code):
-    """
-    Verifikasi OTP untuk login (2FA)
-    
-    Returns:
-        tuple: (user, token, error_message)
-    """
-    email = email.strip().lower()
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        return None, None, "User tidak ditemukan"
-    
-    success, error = verify_otp(user, otp_code)
-    if not success:
-        return None, None, error
-    
-    # Buat session token
-=======
     if not user.is_verified:
         # Trigger verification OTP resend if not verified
         otp = generate_digit_otp()
@@ -178,7 +139,6 @@ def verify_login_otp(email, otp_code):
             
         return user, None, "Akun belum terverifikasi"
 
->>>>>>> bc0df1f6c86a39764f703ac9b37b277b601a4df4
     token = secrets.token_urlsafe(32)
     session = UserSession(
         user_id=user.id,

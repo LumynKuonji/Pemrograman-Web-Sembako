@@ -94,11 +94,8 @@ def buat_pesanan_dari_keranjang(user_id, data):
     db.session.add(pesanan)
     db.session.flush()
 
-<<<<<<< HEAD
     # Pindahkan item dari keranjang ke pesanan
-=======
     items_list_for_email = []
->>>>>>> bc0df1f6c86a39764f703ac9b37b277b601a4df4
     for item in items:
         # Collect info for the email receipt
         items_list_for_email.append({

@@ -54,43 +54,10 @@ def api_register():
     if err:
         return jsonify({"error": err}), 400
     return jsonify({
-<<<<<<< HEAD
-        "status": "success",
-        "message": "OTP telah dikirim ke email Anda. Silakan verifikasi.",
-        "user": user.to_dict()
-    }), 201
-
-
-@api_bp.route("/auth/verify-otp", methods=["POST", "OPTIONS"])
-def api_verify_otp():
-    """
-    POST /api/auth/verify-otp
-    Body: { "email": "...", "otp_code": "123456" }
-    Response: { "status": "success", "message": "Email berhasil diverifikasi" }
-    """
-    if request.method == "OPTIONS":
-        return _cors_preflight()
-    data = request.json or {}
-    email = data.get("email", "")
-    otp_code = data.get("otp_code", "")
-    
-    if not email or not otp_code:
-        return jsonify({"error": "Email dan OTP wajib diisi"}), 400
-    
-    success, err = auth_controller.verify_registration_otp(email, otp_code)
-    if err:
-        return jsonify({"error": err}), 400
-    
-    return jsonify({
-        "status": "success",
-        "message": "Email berhasil diverifikasi! Silakan login."
-    })
-=======
         "status": "success", 
         "message": "Pendaftaran berhasil. Silakan verifikasi akun Anda via OTP.",
         "user": user.to_dict()
     }), 201
->>>>>>> bc0df1f6c86a39764f703ac9b37b277b601a4df4
 
 
 @api_bp.route("/auth/login", methods=["POST", "OPTIONS"])
@@ -110,22 +77,12 @@ def api_login():
         return jsonify({"error": "Email dan password wajib diisi"}), 400
     user, token, err = auth_controller.login_user(email, password)
     if err:
-<<<<<<< HEAD
-        if err == "OTP_REQUIRED":
-            return jsonify({
-                "status": "success",
-                "otp_required": True,
-                "message": "OTP telah dikirim ke email Anda",
-                "email": email
-            })
-=======
         if err == "Akun belum terverifikasi":
             return jsonify({
                 "status": "unverified",
                 "error": err,
                 "email": email
             }), 403
->>>>>>> bc0df1f6c86a39764f703ac9b37b277b601a4df4
         return jsonify({"error": err}), 401
     return jsonify({
         "status": "success",
@@ -134,28 +91,6 @@ def api_login():
     })
 
 
-<<<<<<< HEAD
-@api_bp.route("/auth/verify-login-otp", methods=["POST", "OPTIONS"])
-def api_verify_login_otp():
-    """
-    POST /api/auth/verify-login-otp
-    Body: { "email": "...", "otp_code": "123456" }
-    Response: { "status": "success", "token": "...", "user": {...} }
-    """
-    if request.method == "OPTIONS":
-        return _cors_preflight()
-    data = request.json or {}
-    email = data.get("email", "")
-    otp_code = data.get("otp_code", "")
-    
-    if not email or not otp_code:
-        return jsonify({"error": "Email dan OTP wajib diisi"}), 400
-    
-    user, token, err = auth_controller.verify_login_otp(email, otp_code)
-    if err:
-        return jsonify({"error": err}), 401
-    
-=======
 @api_bp.route("/auth/verify-register", methods=["POST", "OPTIONS"])
 def api_verify_register():
     if request.method == "OPTIONS":
@@ -216,7 +151,6 @@ def api_verify_login_otp():
     user, token, err = auth_controller.verify_login_otp(email, code)
     if err:
         return jsonify({"error": err}), 401
->>>>>>> bc0df1f6c86a39764f703ac9b37b277b601a4df4
     return jsonify({
         "status": "success",
         "token": token,
@@ -224,8 +158,6 @@ def api_verify_login_otp():
     })
 
 
-<<<<<<< HEAD
-=======
 @api_bp.route("/auth/request-reset-otp", methods=["POST", "OPTIONS"])
 def api_request_reset_otp():
     if request.method == "OPTIONS":
@@ -269,9 +201,6 @@ def api_resend_otp():
     if err:
         return jsonify({"error": err}), 400
     return jsonify({"status": "success", "message": "Kode OTP baru telah dikirim ke email Anda"})
-
-
->>>>>>> bc0df1f6c86a39764f703ac9b37b277b601a4df4
 @api_bp.route("/auth/logout", methods=["POST", "OPTIONS"])
 def api_logout():
     """POST /api/auth/logout - Logout user"""
@@ -371,36 +300,6 @@ def api_reset_password():
     return jsonify({
         "status": "success",
         "message": "Password berhasil diubah. Silakan login dengan password baru."
-    })
-
-
-# ============================================
-# RESEND OTP ENDPOINT
-# ============================================
-
-@api_bp.route("/auth/resend-otp", methods=["POST", "OPTIONS"])
-def api_resend_otp():
-    """
-    POST /api/auth/resend-otp
-    Body: { "email": "...", "otp_type": "register|login|forgot_password" }
-    Response: { "status": "success", "message": "OTP telah dikirim ulang" }
-    """
-    if request.method == "OPTIONS":
-        return _cors_preflight()
-    data = request.json or {}
-    email = data.get("email", "")
-    otp_type = data.get("otp_type", "register")
-    
-    if not email:
-        return jsonify({"error": "Email wajib diisi"}), 400
-    
-    success, err = auth_controller.resend_otp(email, otp_type)
-    if err:
-        return jsonify({"error": err}), 400
-    
-    return jsonify({
-        "status": "success",
-        "message": "OTP telah dikirim ulang ke email Anda"
     })
 
 
