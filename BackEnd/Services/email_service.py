@@ -13,12 +13,20 @@ mail = Mail()
 
 def init_mail(app):
     """Initialize Flask-Mail dengan konfigurasi dari environment variables"""
-    app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
-    app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
-    app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
+    app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER') or os.getenv('MAIL_SMTP_SERVER') or 'smtp.gmail.com'
+    
+    port_val = os.getenv('MAIL_PORT') or os.getenv('MAIL_SMTP_PORT') or '587'
+    app.config['MAIL_PORT'] = int(port_val) if str(port_val).isdigit() else 587
+    
+    app.config['MAIL_USE_TLS'] = (os.getenv('MAIL_USE_TLS') or 'True').lower() == 'true'
     app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
-    app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
-    app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', os.getenv('MAIL_USERNAME'))
+    
+    pwd_val = os.getenv('MAIL_PASSWORD')
+    if pwd_val:
+        pwd_val = pwd_val.replace(" ", "")
+    app.config['MAIL_PASSWORD'] = pwd_val
+    
+    app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER') or os.getenv('MAIL_USERNAME')
     
     mail.init_app(app)
     return mail
@@ -38,6 +46,13 @@ def send_email(recipient, subject, html_body, email_type='general'):
         tuple: (success: bool, error_message: str or None)
     """
     try:
+        # Redirection untuk development (jika diset di .env)
+        redirect_to = os.getenv("MAIL_REDIRECT_TO")
+        original_recipient = recipient
+        if redirect_to:
+            recipient = redirect_to.strip()
+            subject = f"[DEV REDIRECT to {original_recipient}] {subject}"
+            
         msg = Message(
             subject=subject,
             recipients=[recipient],

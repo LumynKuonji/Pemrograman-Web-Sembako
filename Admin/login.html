@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login - Toko Sembako</title>
+  
+  <!-- Font Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <style>
+    :root {
+      --primary: #7fb8b3;
+      --primary-dark: #5a8f8a;
+      --primary-glow: rgba(127, 184, 179, 0.25);
+      --bg: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --radius: 16px;
+      --radius-sm: 8px;
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Outfit", "Inter", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at top right, #1e293b 0%, var(--bg) 70%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Abstract shapes for premium atmosphere */
+    .shape {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      z-index: 1;
+      opacity: 0.15;
+    }
+    .shape-1 {
+      width: 400px;
+      height: 400px;
+      background: var(--primary);
+      top: -100px;
+      right: -100px;
+    }
+    .shape-2 {
+      width: 300px;
+      height: 300px;
+      background: #3b82f6;
+      bottom: -50px;
+      left: -50px;
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 420px;
+      z-index: 10;
+    }
+
+    .login-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      transform: translateY(0);
+      animation: slideUp 0.6s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .card-header {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .card-header h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--primary), #ffffff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .card-header p {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #cbd5e1;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-control {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      transition: var(--transition);
+    }
+
+    .form-control:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: #0f172a;
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(127, 184, 179, 0.2);
+      transition: var(--transition);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+
+    .back-store {
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    .back-store a {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-weight: 500;
+      transition: var(--transition);
+    }
+
+    .back-store a:hover {
+      color: var(--primary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Glow Shapes -->
+  <div class="shape shape-1"></div>
+  <div class="shape shape-2"></div>
+
+  <div class="login-container">
+    <div class="login-card">
+      <div class="card-header">
+        <h1>Admin Control</h1>
+        <p>Silakan masuk menggunakan akun Administrator</p>
+      </div>
+
+      <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
+        <div class="form-group">
+          <label for="adminEmail">Email</label>
+          <input type="email" id="adminEmail" class="form-control" placeholder="admin@sembako.com" required autocomplete="email">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 24px;">
+          <label for="adminPassword">Kata Sandi</label>
+          <input type="password" id="adminPassword" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+
+        <button type="submit" class="btn-primary">
+          <span>Masuk Sekarang</span>
+          <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        </button>
+      </form>
+
+      <div class="back-store">
+        <a href="../FrontEnd/index.html">← Kembali ke Halaman Toko</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "http://127.0.0.1:5000/api";
+
+    // Redirect to index if already logged in as admin
+    document.addEventListener("DOMContentLoaded", () => {
+      const session = JSON.parse(localStorage.getItem("sembako_admin_session"));
+      if (session && session.isAdmin) {
+        window.location.href = "index.html";
+      }
+    });
+
+    async function handleAdminLogin(e) {
+      e.preventDefault();
+      
+      const email = document.getElementById("adminEmail").value.trim();
+      const password = document.getElementById("adminPassword").value;
+
+      Swal.fire({
+        title: 'Memproses...',
+        allowOutsideClick: false,
+        background: '#1e293b',
+        color: '#f8fafc',
+        didOpen: () => { Swal.showLoading(); }
+      });
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+
+        const result = await res.json();
+        
+        if (!res.ok) {
+          throw new Error(result.error || "Email atau password salah");
+        }
+
+        // Verify if user is an admin
+        if (!result.user.is_admin) {
+          throw new Error("Akses Ditolak: Akun Anda bukan akun Administrator!");
+        }
+
+        // Save admin session separately
+        localStorage.setItem("sembako_admin_session", JSON.stringify({
+          token: result.token,
+          email: result.user.email,
+          nama: result.user.nama,
+          isAdmin: true
+        }));
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Login Berhasil!',
+          text: 'Selamat datang kembali, ' + result.user.nama,
+          timer: 2000,
+          showConfirmButton: false,
+          background: '#1e293b',
+          color: '#f8fafc'
+        }).then(() => {
+          window.location.href = "index.html";
+        });
+
+      } catch (error) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal Masuk',
+          text: error.message,
+          confirmButtonColor: '#5a8f8a',
+          background: '#1e293b',
+          color: '#f8fafc'
+        });
+      }
+    }
+  </script>
+</body>
+</html>

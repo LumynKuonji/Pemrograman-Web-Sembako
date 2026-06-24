@@ -7,9 +7,9 @@ BACKEND_ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = BACKEND_ROOT.parent / ".env"
 if ENV_PATH.exists():
     load_dotenv(ENV_PATH)
-    print(f"📧 Email config dimuat dari {ENV_PATH}")
+    print(f"[Email Config] Email config dimuat dari {ENV_PATH}")
 else:
-    print(f"⚠️  File .env tidak ditemukan di {ENV_PATH}")
+    print(f"[Email Config Warning] File .env tidak ditemukan di {ENV_PATH}")
     print("   Buat file .env dari .env.example untuk mengaktifkan fitur email")
 
 from flask import Flask
@@ -46,17 +46,32 @@ def create_app():
 
 
 def seed_demo_user():
-    if User.query.filter_by(email="moreno@gmail.com").first():
-        return
-    demo = User(
-        nama="Moreno",
-        email="moreno@gmail.com",
-        password_hash=generate_password_hash("123456"),
-        telepon="+62 812-7891-6777",
-        foto="https://i.pravatar.cc/150?img=68",
-        is_verified=True,
-    )
-    db.session.add(demo)
+    # Seed standard user
+    if not User.query.filter_by(email="moreno@gmail.com").first():
+        demo = User(
+            nama="Moreno",
+            email="moreno@gmail.com",
+            password_hash=generate_password_hash("123456"),
+            telepon="+62 812-7891-6777",
+            foto="https://i.pravatar.cc/150?img=68",
+            is_verified=True,
+            is_admin=False
+        )
+        db.session.add(demo)
+
+    # Seed admin user
+    if not User.query.filter_by(email="admin@sembako.com").first():
+        admin = User(
+            nama="Admin Sembako",
+            email="admin@sembako.com",
+            password_hash=generate_password_hash("admin123"),
+            telepon="+62 812-3456-7890",
+            foto="https://img.icons8.com/color/150/admin-settings-male.png",
+            is_verified=True,
+            is_admin=True
+        )
+        db.session.add(admin)
+        
     db.session.commit()
 
 

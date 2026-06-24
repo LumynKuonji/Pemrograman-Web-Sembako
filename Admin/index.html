@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Kelola Produk Sembako</title>
+  
+  <!-- Font Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Auth Gate Check -->
+  <script>
+    (() => {
+      const session = JSON.parse(localStorage.getItem("sembako_admin_session"));
+      if (!session || !session.isAdmin || !session.token) {
+        window.location.href = "login.html";
+      }
+    })();
+  </script>
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+  <!-- Sidebar Navigation -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">🛒 Sembako Admin</div>
+    </div>
+    
+    <ul class="sidebar-menu">
+      <li class="menu-item active">
+        <a href="#">
+          <svg style="width:20px;height:20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+          <span>Kelola Produk</span>
+        </a>
+      </li>
+      <li class="menu-item">
+        <a href="../FrontEnd/index.html">
+          <svg style="width:20px;height:20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <span>Lihat Toko User</span>
+        </a>
+      </li>
+    </ul>
+    
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="handleAdminLogout()">
+        <svg style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        <span>Keluar</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+    
+    <!-- Topbar Header -->
+    <div class="topbar">
+      <div class="page-title">
+        <h1>Manajemen Produk</h1>
+        <p>Kelola semua barang sembako yang ditawarkan kepada pelanggan.</p>
+      </div>
+    </div>
+    
+    <!-- Metrics Grid -->
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-info">
+          <h3>Total Produk</h3>
+          <div id="totalProductsVal" class="value">-</div>
+        </div>
+        <div class="metric-icon">📦</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-info">
+          <h3>Jumlah Kategori</h3>
+          <div id="totalCategoriesVal" class="value">-</div>
+        </div>
+        <div class="metric-icon">🗂️</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-info">
+          <h3>Rata-rata Harga</h3>
+          <div id="avgPriceVal" class="value">-</div>
+        </div>
+        <div class="metric-icon">💰</div>
+      </div>
+    </section>
+
+    <!-- Product Database Management Card -->
+    <section class="data-card">
+      <div class="card-header">
+        
+        <!-- Search and Filters -->
+        <div class="search-filter-box">
+          <div class="search-input-wrapper">
+            <svg class="search-icon" style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="searchInput" class="search-input" placeholder="Cari nama produk...">
+          </div>
+          
+          <select id="categoryFilter" class="select-filter">
+            <option value="Semua">Semua Kategori</option>
+          </select>
+        </div>
+        
+        <!-- Action Button -->
+        <button class="btn-primary" onclick="openAddModal()">
+          <svg style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span>Tambah Produk</span>
+        </button>
+      </div>
+
+      <!-- Table View -->
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Informasi Produk</th>
+              <th>Harga Satuan</th>
+              <th>Kategori</th>
+              <th>SKU ID</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="productsTableBody">
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 32px;">
+                Mengambil data produk...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Add / Edit Modal Overlay -->
+  <div id="productModal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 id="modalTitle">Tambah Produk Baru</h2>
+        <span class="btn-close-modal" onclick="closeModal()">&times;</span>
+      </div>
+      
+      <form id="productForm">
+        <div class="modal-body">
+          <input type="hidden" id="productId">
+          
+          <div class="form-group">
+            <label for="productNama">Nama Produk *</label>
+            <input type="text" id="productNama" class="form-control" placeholder="Contoh: Beras Pandan Wangi 5KG" required>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label for="productHarga">Harga (Rp) *</label>
+              <input type="number" id="productHarga" class="form-control" placeholder="Contoh: 75000" min="0" required>
+            </div>
+            
+            <div class="form-group">
+              <label for="productKategori">Kategori *</label>
+              <select id="productKategori" class="form-control" required>
+                <option value="">Pilih Kategori</option>
+                <option value="Bahan Pokok">Bahan Pokok</option>
+                <option value="Makanan Instan">Makanan Instan</option>
+                <option value="Bumbu Dapur">Bumbu Dapur</option>
+                <option value="Minuman">Minuman</option>
+                <option value="Snack">Snack</option>
+                <option value="Kebutuhan Mandi">Kebutuhan Mandi</option>
+                <option value="Kebutuhan Cuci">Kebutuhan Cuci</option>
+                <option value="Produk Fresh">Produk Fresh</option>
+                <option value="Produk Segar">Produk Segar</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="productImg">URL Foto Produk</label>
+            <input type="url" id="productImg" class="form-control" placeholder="https://contoh.com/gambar.jpg">
+            <div class="image-preview-container">
+              <img id="imgPreview" src="" alt="Pratinjau Gambar" style="display: none;">
+              <span style="color: var(--text-muted); font-size: 13px;" id="previewPlaceholder">Pratinjau gambar akan tampil di sini</span>
+            </div>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="productDesc">Deskripsi Produk</label>
+            <textarea id="productDesc" class="form-control" placeholder="Detail informasi produk, expired date, berat, dll."></textarea>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal()">Batal</button>
+          <button type="submit" class="btn-primary">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SweetAlert2 (matches project libraries) -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <!-- JavaScript Controller -->
+  <script src="js/admin.js"></script>
+</body>
+</html>

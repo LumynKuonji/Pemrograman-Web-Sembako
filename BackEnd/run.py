@@ -19,7 +19,7 @@ if __name__ == "__main__":
     print("API Chatbot:    POST http://localhost:5000/api/chat")
     if chatbot_controller.is_configured():
         provider, url, _, model = chatbot_controller.get_ai_config()
-        print(f"Chatbot AI:     {provider} ✓  model={model}")
+        print(f"Chatbot AI:     {provider} [Ready]  model={model}")
         print(f"                {url}")
     else:
         print("Chatbot AI:     isi BackEnd/config_ai.env (NVIDIA NIM / OpenRouter / 9Router)")

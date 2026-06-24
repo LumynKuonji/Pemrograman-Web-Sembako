@@ -1394,6 +1394,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   initSiteChrome();
   updateCartBadge();
 
+  // Load products dynamically dari database/backend API
+  try {
+    const res = await fetch(`${API_BASE}/products`);
+    if (res.ok) {
+      const serverProducts = await res.json();
+      if (serverProducts && serverProducts.length > 0) {
+        products.length = 0; // Bersihkan array lokal
+        serverProducts.forEach(p => products.push(p)); // Masukkan data dari server
+      }
+    }
+  } catch (err) {
+    console.error("Gagal memuat produk dari server, menggunakan data lokal:", err);
+  }
+
   if (isLoggedIn()) {
     fetchCartFromServer();
   }
@@ -1775,9 +1789,17 @@ function updateProfileGuestUI() {
   const banner = document.getElementById("guestBanner");
   const settingsItem = document.getElementById("settingsMenuItem");
   const addressItem = document.getElementById("addressMenuItem");
+  const adminPanelBtn = document.getElementById("adminPanelBtn");
+
   if (banner) banner.style.display = isLoggedIn() ? "none" : "block";
   if (settingsItem) settingsItem.style.display = isLoggedIn() ? "flex" : "none";
   if (addressItem) addressItem.style.opacity = isLoggedIn() ? "1" : "0.5";
+  
+  if (adminPanelBtn) {
+    const cachedUser = JSON.parse(localStorage.getItem("sembako_user"));
+    const isAdmin = cachedUser && (cachedUser.is_admin === true || cachedUser.is_admin === 1);
+    adminPanelBtn.style.display = isLoggedIn() && isAdmin ? "flex" : "none";
+  }
 }
 
 function openAccountSettings() {

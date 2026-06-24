@@ -323,6 +323,65 @@ def api_products():
     return jsonify([p.to_dict() for p in data])
 
 
+@api_bp.route('/products', methods=['POST', 'OPTIONS'])
+def api_products_add():
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    data = request.json or {}
+    nama = data.get("nama", "").strip()
+    harga = data.get("harga")
+    kategori = data.get("kategori", "").strip()
+    img = data.get("img", "").strip()
+    desc = data.get("desc", "").strip()
+    
+    if not nama or not harga or not kategori:
+        return jsonify({"error": "Nama, harga, dan kategori produk wajib diisi"}), 400
+        
+    try:
+        harga_int = int(harga)
+    except ValueError:
+        return jsonify({"error": "Harga harus berupa angka"}), 400
+        
+    produk = produk_controller.tambah_produk(nama, harga_int, kategori, img or None, desc or None)
+    return jsonify({"status": "success", "message": "Produk berhasil ditambahkan", "product": produk.to_dict()}), 201
+
+
+@api_bp.route('/products/<int:produk_id>', methods=['PUT', 'OPTIONS'])
+def api_products_edit(produk_id):
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    data = request.json or {}
+    nama = data.get("nama", "").strip()
+    harga = data.get("harga")
+    kategori = data.get("kategori", "").strip()
+    img = data.get("img", "").strip()
+    desc = data.get("desc", "").strip()
+    
+    if not nama or not harga or not kategori:
+        return jsonify({"error": "Nama, harga, dan kategori produk wajib diisi"}), 400
+        
+    try:
+        harga_int = int(harga)
+    except ValueError:
+        return jsonify({"error": "Harga harus berupa angka"}), 400
+        
+    produk = produk_controller.edit_produk(produk_id, nama, harga_int, kategori, img or None, desc or None)
+    if not produk:
+        return jsonify({"error": "Produk tidak ditemukan"}), 404
+        
+    return jsonify({"status": "success", "message": "Produk berhasil diperbarui", "product": produk.to_dict()})
+
+
+@api_bp.route('/products/<int:produk_id>', methods=['DELETE', 'OPTIONS'])
+def api_products_delete(produk_id):
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    success = produk_controller.hapus_produk(produk_id)
+    if not success:
+        return jsonify({"error": "Produk tidak ditemukan atau gagal dihapus"}), 404
+    return jsonify({"status": "success", "message": "Produk berhasil dihapus"})
+
+
 # ============================================
 # CART ENDPOINTS
 # ============================================
@@ -674,5 +733,5 @@ def register_routes(app):
     def add_cors_headers(response):
         response.headers["Access-Control-Allow-Origin"] = "*"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, OPTIONS"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
         return response

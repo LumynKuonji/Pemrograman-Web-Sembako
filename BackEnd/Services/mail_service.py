@@ -23,11 +23,16 @@ def get_mail_config():
     file_cfg = _parse_env_file(BACKEND_ROOT / "config_mail.env")
     
     provider = os.environ.get("MAIL_PROVIDER") or file_cfg.get("MAIL_PROVIDER") or "console"
-    smtp_server = os.environ.get("MAIL_SMTP_SERVER") or file_cfg.get("MAIL_SMTP_SERVER") or ""
-    smtp_port = os.environ.get("MAIL_SMTP_PORT") or file_cfg.get("MAIL_SMTP_PORT") or "587"
+    smtp_server = os.environ.get("MAIL_SMTP_SERVER") or os.environ.get("MAIL_SERVER") or file_cfg.get("MAIL_SMTP_SERVER") or ""
+    smtp_port = os.environ.get("MAIL_SMTP_PORT") or os.environ.get("MAIL_PORT") or file_cfg.get("MAIL_SMTP_PORT") or "587"
     use_tls = os.environ.get("MAIL_USE_TLS") or file_cfg.get("MAIL_USE_TLS") or "True"
     username = os.environ.get("MAIL_USERNAME") or file_cfg.get("MAIL_USERNAME") or ""
     password = os.environ.get("MAIL_PASSWORD") or file_cfg.get("MAIL_PASSWORD") or ""
+    
+    # Strip spaces from password if it is a Gmail app password
+    if password:
+        password = password.replace(" ", "")
+        
     default_sender = os.environ.get("MAIL_DEFAULT_SENDER") or file_cfg.get("MAIL_DEFAULT_SENDER") or "Toko Sembako <noreply@tokosembako.com>"
     
     # If SMTP settings are fully filled, default to smtp provider
@@ -37,8 +42,8 @@ def get_mail_config():
     return {
         "provider": provider,
         "smtp_server": smtp_server,
-        "smtp_port": int(smtp_port) if smtp_port.isdigit() else 587,
-        "use_tls": use_tls.lower() in ("true", "1", "yes"),
+        "smtp_port": int(smtp_port) if str(smtp_port).isdigit() else 587,
+        "use_tls": str(use_tls).lower() in ("true", "1", "yes"),
         "username": username,
         "password": password,
         "default_sender": default_sender
@@ -73,15 +78,22 @@ def save_email_to_sandbox(to_email, subject, html_content):
     with open(log_file, "a", encoding="utf-8") as f:
         f.write(f"[{datetime.now().isoformat()}] Sent to {to_email} | Subject: {subject} | File: {filepath.name}\n")
         
-    print(f"📧 [Mail Sandbox] Email disimulasikan ke {to_email}. Subjek: '{subject}'. Tersimpan di: {filepath.relative_to(BACKEND_ROOT.parent)}")
+    print(f"[Mail Sandbox] Email disimulasikan ke {to_email}. Subjek: '{subject}'. Tersimpan di: {filepath.relative_to(BACKEND_ROOT.parent)}")
     return str(filepath)
 
 def send_email(to_email, subject, html_content):
     config = get_mail_config()
     
+    # Redirection untuk development (jika diset di .env)
+    redirect_to = os.environ.get("MAIL_REDIRECT_TO")
+    original_recipient = to_email
+    if redirect_to:
+        to_email = redirect_to.strip()
+        subject = f"[DEV REDIRECT to {original_recipient}] {subject}"
+        
     if config["provider"] == "console" or not config["smtp_server"] or not config["username"]:
         # Log to file and console
-        return save_email_to_sandbox(to_email, subject, html_content), True
+        return save_email_to_sandbox(original_recipient, subject, html_content), True
         
     try:
         # Create SMTP session
@@ -103,12 +115,12 @@ def send_email(to_email, subject, html_content):
         server.sendmail(config["default_sender"], to_email, msg.as_string())
         server.close()
         
-        print(f"📧 [Mail SMTP] Email berhasil dikirim ke {to_email}. Subjek: '{subject}'")
+        print(f"[Mail SMTP] Email berhasil dikirim ke {to_email}. Subjek: '{subject}'")
         return "SMTP Success", True
     except Exception as e:
-        print(f"❌ [Mail SMTP Error] Gagal mengirim email ke {to_email}: {e}")
+        print(f"[Mail SMTP Error] Gagal mengirim email ke {to_email}: {e}")
         # Fallback to sandbox if SMTP fails
-        print("🔄 [Mail Fallback] Menyimpan ke Sandbox Lokal...")
+        print("[Mail Fallback] Menyimpan ke Sandbox Lokal...")
         return save_email_to_sandbox(to_email, subject, f"<!-- SMTP Error: {e} -->" + html_content), False
 
 # HTML Templates

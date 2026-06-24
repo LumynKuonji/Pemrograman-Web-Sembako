@@ -20,6 +20,7 @@ class User(db.Model):
     otp_expiry = db.Column(db.DateTime, nullable=True)
     otp_type = db.Column(db.String(20), nullable=True) 
     last_login = db.Column(db.DateTime)
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
 
     @property
     def email_verified(self):
@@ -51,6 +52,7 @@ class User(db.Model):
             "telepon": self.telepon,
             "foto": self.foto,
             "is_verified": self.is_verified,
+            "is_admin": self.is_admin,
         }
         if include_email:
             data["email"] = self.email

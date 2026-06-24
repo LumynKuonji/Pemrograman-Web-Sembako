@@ -11,6 +11,12 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NOT NULL,
   telepon VARCHAR(30) DEFAULT NULL,
   foto VARCHAR(500) DEFAULT NULL,
+  is_verified TINYINT(1) NOT NULL DEFAULT 0,
+  otp_code VARCHAR(6) DEFAULT NULL,
+  otp_expiry TIMESTAMP DEFAULT NULL,
+  otp_type VARCHAR(20) DEFAULT NULL,
+  last_login TIMESTAMP DEFAULT NULL,
+  is_admin TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_users_email (email)
@@ -25,6 +31,17 @@ CREATE TABLE IF NOT EXISTS user_sessions (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   INDEX idx_sessions_token (token),
   INDEX idx_sessions_user (user_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS email_log (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  recipient VARCHAR(255) NOT NULL,
+  subject VARCHAR(255) NOT NULL,
+  email_type VARCHAR(50) NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'sent',
+  error_message TEXT DEFAULT NULL,
+  sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_email_log_recipient (recipient)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS produk (
