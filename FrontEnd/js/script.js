@@ -1,213 +1,4 @@
-const products = [
-  {
-    id: 1,
-    nama: "Beras Fortune 5 KG",
-    harga: 96000,
-    kategori: "Bahan Pokok",
-    img: "https://down-id.img.susercontent.com/file/8395b675db848bddc30455bd25ea6541@resize_w900_nl.webp",
-    desc: "Beras pulen kualitas premium, cocok untuk keluarga besar.",
-  },
-  {
-    id: 2,
-    nama: "GULAKU 1KG",
-    harga: 18000,
-    kategori: "Bahan Pokok",
-    img: "https://i.pinimg.com/736x/f7/92/69/f79269dae0c36b6f54f9af5dc9dccf4b.jpg",
-    desc: "Gula pasir putih berkualitas, manis alami.",
-  },
-  {
-    id: 3,
-    nama: "Gula Halus Rose Brand 500 GR",
-    harga: 14000,
-    kategori: "Bahan Pokok",
-    img: "https://i.pinimg.com/1200x/e6/6b/a1/e66ba14e4ca583029af940a0517fc314.jpg",
-    desc: "Gula halus lembut untuk kue dan minuman.",
-  },
-  {
-    id: 4,
-    nama: "Tepung Segitiga Biru 1KG",
-    harga: 16000,
-    kategori: "Bahan Pokok",
-    img: "https://i.pinimg.com/736x/57/7b/05/577b05da5c698a257d0b1680dec4840f.jpg",
-    desc: "Tepung serbaguna untuk gorengan dan baking.",
-  },
-  {
-    id: 5,
-    nama: "Indomie Goreng 1 dus",
-    harga: 137500,
-    kategori: "Makanan Instan",
-    img: "https://i.pinimg.com/1200x/39/f9/79/39f97924e0ccefe5865900356a9d336b.jpg",
-    desc: "Indomie goreng favorit keluarga, isi 40 bungkus.",
-  },
-  {
-    id: 6,
-    nama: "Indomie Soto Mie 1 dus",
-    harga: 140500,
-    kategori: "Makanan Instan",
-    img: "https://i.pinimg.com/1200x/f2/12/12/f2121200e80b301688d31d1763f40d1a.jpg",
-    desc: "Rasa kuah soto yang gurih dan segar.",
-  },
-  {
-    id: 7,
-    nama: "Indomie Ayam Bawang 1 dus",
-    harga: 125000,
-    kategori: "Makanan Instan",
-    img: "https://i.pinimg.com/1200x/58/ee/94/58ee946df496b196e19602b5acfec46b.jpg",
-    desc: "Cita rasa bawang yang harum dan khas.",
-  },
-  {
-    id: 8,
-    nama: "Mie Sedap Goreng 1 dus",
-    harga: 140000,
-    kategori: "Makanan Instan",
-    img: "https://i.pinimg.com/1200x/23/db/35/23db35506192154250286ccea47a7a15.jpg",
-    desc: "Mie goreng dengan bumbu kaya rempah.",
-  },
-  {
-    id: 9,
-    nama: "Indomie Ayam Geprek 1 dus",
-    harga: 143500,
-    kategori: "Makanan Instan",
-    img: "https://i.pinimg.com/736x/56/bb/26/56bb260308f663879bf8034b4b01d2b8.jpg",
-    desc: "Pedas nikmat ala ayam geprek.",
-  },
-  {
-    id: 10,
-    nama: "Garam Kapal 250 Gr",
-    harga: 3000,
-    kategori: "Bumbu Dapur",
-    img: "https://i.pinimg.com/1200x/34/15/5a/34155ad4cb58371c1a59d8d482b78f80.jpg",
-    desc: "Garam meja halus untuk masakan sehari-hari.",
-  },
-  {
-    id: 11,
-    nama: "Masako Ayam 11 Gr (6 Sachet)",
-    harga: 13000,
-    kategori: "Bumbu Dapur",
-    img: "https://i.pinimg.com/1200x/4f/6d/72/4f6d728d69bbb59f928afb68e15f6592.jpg",
-    desc: "Penyedap rasa ayam praktis.",
-  },
-  {
-    id: 12,
-    nama: "Royco Sapi (12 Sachet)",
-    harga: 15000,
-    kategori: "Bumbu Dapur",
-    img: "https://i.pinimg.com/736x/fe/a0/a8/fea0a8a998a10a3a2e2cb40c00b2a9af.jpg",
-    desc: "Bumbu penyedap sapi berkualitas.",
-  },
-  {
-    id: 13,
-    nama: "Teh Kotak Jasmine 200 Ml",
-    harga: 4000,
-    kategori: "Minuman",
-    img: "https://i.pinimg.com/1200x/9f/25/d2/9f25d257a6c644a182cbe026a5eecd84.jpg",
-    desc: "Teh melati segar dalam kemasan kotak.",
-  },
-  {
-    id: 14,
-    nama: "Teh Pucuk Harum 350 Ml",
-    harga: 3500,
-    kategori: "Minuman",
-    img: "https://i.pinimg.com/1200x/ae/9e/55/ae9e55c743331663f05f42407271d04a.jpg",
-    desc: "Teh hijau pucuk terbaik, segar dan sehat.",
-  },
-  {
-    id: 15,
-    nama: "FRUIT TEA Apple 350ML",
-    harga: 4000,
-    kategori: "Minuman",
-    img: "https://i.pinimg.com/1200x/4e/37/4d/4e374dc7e88a804fee0e79e5d209c74e.jpg",
-    desc: "Teh rasa apel yang menyegarkan.",
-  },
-  {
-    id: 16,
-    nama: "POTABEE BARBEQUE 68 GR",
-    harga: 28000,
-    kategori: "Snack",
-    img: "https://down-id.img.susercontent.com/file/sg-11134201-824g9-mepph5cyvgn9c2@resize_w900_nl.webp",
-    desc: "Keripik kentang rasa BBQ yang renyah.",
-  },
-  {
-    id: 17,
-    nama: "KitKat 45gr",
-    harga: 11000,
-    kategori: "Snack",
-    img: "https://i.pinimg.com/736x/5a/71/84/5a7184e1d347ebbdb920c49ae5c99266.jpg",
-    desc: "Coklat renyah berlapis wafer.",
-  },
-  {
-    id: 18,
-    nama: "CHEETOS Puffs 60 gr",
-    harga: 21000,
-    kategori: "Snack",
-    img: "https://i.pinimg.com/736x/94/b2/48/94b248e82908bfc2a82a824fcc313356.jpg",
-    desc: "Snack keju yang ringan dan renyah.",
-  },
-  {
-    id: 19,
-    nama: "Head & Shoulder 350ml",
-    harga: 87000,
-    kategori: "Kebutuhan Mandi",
-    img: "https://i.pinimg.com/1200x/54/7e/12/547e12146ace111fe9d98c2c7598af2a.jpg",
-    desc: "Shampoo anti ketombe cool menthol.",
-  },
-  {
-    id: 20,
-    nama: "SUNLIGHT BOTOL 750 ML",
-    harga: 49000,
-    kategori: "Kebutuhan Cuci",
-    img: "https://i.pinimg.com/1200x/4c/78/bb/4c78bb6fd632ed391f2ec25769f1b251.jpg",
-    desc: "Sabun cuci piring pemotong lemak.",
-  },
-  {
-    id: 21,
-    nama: "Pepsodent Action 123 180 GR",
-    harga: 27000,
-    kategori: "Kebutuhan Mandi",
-    img: "https://i.pinimg.com/1200x/34/a8/4d/34a84dac30633b6cff4085bd3f778223.jpg",
-    desc: "Sikat gigi 3 arah bersih maksimal.",
-  },
-  {
-    id: 22,
-    nama: "SO GOOD TELUR OMEGA3 10S",
-    harga: 34000,
-    kategori: "Produk Segar",
-    img: "https://down-id.img.susercontent.com/file/id-11134275-7rbk2-ma7ysj9nanj5a9@resize_w900_nl.webp",
-    desc: "Telur kaya omega untuk tumbuh kembang.",
-  },
-  {
-    id: 23,
-    nama: "Smoked Beef Metzger 100gr",
-    harga: 23000,
-    kategori: "Produk Segar",
-    img: "https://encrypted-tbn1.gstatic.com/shopping?q=tbn:ANd9GcSLxvY__qk9kjbgXOHQ5e2CwtDzMZqPDASukce-bu22olpginNVvA1ZOTdOpE78BwC1X7vzTX0wBeq8esRfG0ZYQ-A1xpikOi_-crX6_c7ZSUtt4h0yJAppv5A",
-    desc: "Daging sapi asap halal siap saji.",
-  },
-  {
-    id: 24,
-    nama: "Snack Buah Strawberry Kering Freeze Dried 1 Kg",
-    harga: 66000,
-    kategori: "Snack",
-    img: "https://i.pinimg.com/1200x/35/31/ee/3531ee7dab3c6f86c5be2d1667e3d578.jpg",
-    desc: "Snack Buah Strawberry Kering Freeze Dried sehat tanpa pengawet pewarna rendah kalori cemilan diet.",
-  },
-  {
-    id: 25,
-    nama: "Minyak Goreng Bimoli 2 L",
-    harga: 42000,
-    kategori: "Bahan Pokok",
-    img: "https://i.pinimg.com/736x/a1/b2/c3/a1b2c3d4e5f6789012345678abcdef01.jpg",
-    desc: "Minyak goreng berkualitas untuk masak sehari-hari.",
-  },
-  {
-    id: 26,
-    nama: "Sarden King 155 gr",
-    harga: 18000,
-    kategori: "Makanan Instan",
-    img: "https://i.pinimg.com/736x/b2/c3/d4/b2c3d4e5f6789012345678abcdef0123.jpg",
-    desc: "Ikan sarden dalam saus tomat, praktis dan bergizi.",
-  },
-];
+let products = [];
 
 const MBA_RULES = [
   {
@@ -359,7 +150,7 @@ const DEMO_USERS = [
   },
 ];
 
-const categories = [
+let categories = [
   "Semua",
   "Bahan Pokok",
   "Makanan Instan",
@@ -1084,7 +875,8 @@ function renderCartRecommendations() {
                   .map(
                     (p) => `
                     <div class="reco-card">
-                        <div class="card-img-placeholder" onclick="goDetail(${p.id})" style="cursor: pointer; border-bottom: none;">
+                        ${p.img ? `<img src="${p.img}" alt="${p.nama}" onclick="goDetail(${p.id})" style="cursor: pointer;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
+                        <div class="card-img-placeholder" onclick="goDetail(${p.id})" style="cursor: pointer; border-bottom: none; ${p.img ? 'display: none;' : ''}">
                             <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" class="placeholder-icon">
                                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                 <circle cx="8.5" cy="8.5" r="1.5"></circle>
@@ -1248,7 +1040,8 @@ function renderProducts(list) {
     .map(
       (p) => `
         <div class="card" onclick="goDetail(${p.id})">
-            <div class="card-img-placeholder">
+            ${p.img ? `<img src="${p.img}" alt="${p.nama}" class="card-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
+            <div class="card-img-placeholder" style="${p.img ? 'display: none;' : ''}">
                 <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" class="placeholder-icon">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                     <circle cx="8.5" cy="8.5" r="1.5"></circle>
@@ -1299,7 +1092,8 @@ function renderCartPage() {
     .map(
       (item) => `
         <div class="cart-item">
-            <div class="card-img-placeholder" style="width: 70px; height: 70px; border-radius: 8px; border-bottom: none; flex-shrink: 0;">
+            ${item.img ? `<img src="${item.img}" alt="${item.nama}" style="width: 70px; height: 70px; border-radius: 8px; object-fit: cover; flex-shrink: 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
+            <div class="card-img-placeholder" style="width: 70px; height: 70px; border-radius: 8px; border-bottom: none; flex-shrink: 0; ${item.img ? 'display: none;' : ''}">
                 <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" class="placeholder-icon" style="width: 20px; height: 20px;">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                     <circle cx="8.5" cy="8.5" r="1.5"></circle>
@@ -1358,7 +1152,8 @@ function renderDetailPage() {
   container.innerHTML = `
         <div class="detail-grid">
             <div class="detail-image">
-                <div class="card-img-placeholder" style="border-radius: 12px; height: 100%; min-height: 300px; border-bottom: none;">
+                ${product.img ? `<img src="${product.img}" alt="${product.nama}" style="border-radius: 12px; height: 100%; min-height: 300px; width: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
+                <div class="card-img-placeholder" style="border-radius: 12px; height: 100%; min-height: 300px; border-bottom: none; ${product.img ? 'display: none;' : ''}">
                     <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" class="placeholder-icon" style="width: 48px; height: 48px;">
                         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                         <circle cx="8.5" cy="8.5" r="1.5"></circle>
@@ -1393,15 +1188,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   initSiteChrome();
   updateCartBadge();
+  loadStoreLogo();
 
   // Load products dynamically dari database/backend API
   try {
     const res = await fetch(`${API_BASE}/products`);
     if (res.ok) {
       const serverProducts = await res.json();
+      products.length = 0; // Bersihkan array lokal
       if (serverProducts && serverProducts.length > 0) {
-        products.length = 0; // Bersihkan array lokal
         serverProducts.forEach(p => products.push(p)); // Masukkan data dari server
+        // Update categories dynamically from database
+        const dbCategories = ["Semua", ...new Set(serverProducts.map(p => p.kategori).filter(Boolean))];
+        categories.length = 0;
+        dbCategories.forEach(cat => categories.push(cat));
       }
     }
   } catch (err) {
@@ -1998,7 +1798,8 @@ function renderCheckoutPage() {
     .map(
       (item) => `
         <div class="order-item" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f1f5f9;">
-            <div class="order-item-img-placeholder">
+            ${item.img ? `<img src="${item.img}" alt="${item.nama}" style="width: 40px; height: 40px; border-radius: 6px; border: 1px solid #e2e8f0; object-fit: cover; flex-shrink: 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
+            <div class="order-item-img-placeholder" style="${item.img ? 'display: none;' : ''}">
                 <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" class="placeholder-icon">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                     <circle cx="8.5" cy="8.5" r="1.5"></circle>
@@ -2305,4 +2106,32 @@ function buyAgain(orderId) {
       window.location.href = "keranjang.html";
     },
   });
+}
+
+async function loadStoreLogo() {
+  const logoElements = document.querySelectorAll(".logo");
+  if (logoElements.length === 0) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/settings/logo`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.value) {
+        logoElements.forEach(el => {
+          el.style.width = "auto";
+          el.style.height = "auto";
+          el.style.background = "none";
+          el.style.borderRadius = "0";
+          el.innerHTML = `<img src="${data.value}" alt="Toko Logo" style="max-height: 42px; max-width: 160px; object-fit: contain; display: block; cursor: pointer;" onclick="window.location.href='index.html'">`;
+        });
+      } else {
+        logoElements.forEach(el => {
+          el.style.cursor = "pointer";
+          el.onclick = () => { window.location.href = "index.html"; };
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Gagal memuat logo toko:", error);
+  }
 }

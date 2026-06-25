@@ -39,6 +39,7 @@ function updateImagePreview(url) {
 document.addEventListener("DOMContentLoaded", () => {
   fetchProducts();
   setupEventListeners();
+  loadStoreLogo();
 });
 
 // Event Listeners
@@ -356,4 +357,66 @@ function handleAdminLogout() {
       window.location.href = "login.html";
     }
   });
+}
+
+// Load Store Logo on Admin Page Load
+async function loadStoreLogo() {
+  const storeLogoInput = document.getElementById("storeLogoInput");
+  if (!storeLogoInput) return;
+  try {
+    const res = await fetch(`${API_BASE}/settings/logo`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.value) {
+        storeLogoInput.value = data.value;
+      }
+    }
+  } catch (error) {
+    console.error("Gagal memuat logo toko:", error);
+  }
+}
+
+// Save Store Logo
+async function saveStoreLogo() {
+  const storeLogoInput = document.getElementById("storeLogoInput");
+  if (!storeLogoInput) return;
+  const logoUrl = storeLogoInput.value.trim();
+
+  Swal.fire({
+    title: 'Menyimpan Logo...',
+    allowOutsideClick: false,
+    didOpen: () => { Swal.showLoading(); }
+  });
+
+  try {
+    const session = JSON.parse(localStorage.getItem("sembako_admin_session"));
+    const headers = { "Content-Type": "application/json" };
+    if (session && session.token) {
+      headers.Authorization = `Bearer ${session.token}`;
+    }
+
+    const res = await fetch(`${API_BASE}/settings`, {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify({ key: "logo", value: logoUrl })
+    });
+
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || "Gagal menyimpan logo");
+
+    Swal.close();
+    Swal.fire({
+      icon: 'success',
+      title: 'Logo Disimpan!',
+      text: 'Logo toko berhasil diperbarui.',
+      timer: 2000,
+      showConfirmButton: false
+    });
+  } catch (error) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Gagal Menyimpan Logo',
+      text: error.message
+    });
+  }
 }

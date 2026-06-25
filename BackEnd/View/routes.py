@@ -13,7 +13,7 @@ from BackEnd.Controller import (
     pesanan_controller,
     produk_controller,
 )
-from BackEnd.Database.database import PesananItem, Pesanan, Produk, User, EmailLog, db
+from BackEnd.Database.database import PesananItem, Pesanan, Produk, User, EmailLog, TokoSetting, db
 from BackEnd.Services.email_service import send_invoice_email, send_order_status_email
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
@@ -720,6 +720,44 @@ def api_email_logs():
 
     logs = EmailLog.query.filter_by(recipient=user.email).order_by(EmailLog.sent_at.desc()).limit(50).all()
     return jsonify({"logs": [log.to_dict() for log in logs]})
+
+
+
+# ============================================
+# SETTINGS ENDPOINTS
+# ============================================
+
+@api_bp.route("/settings/<key>", methods=["GET", "OPTIONS"])
+def api_get_setting(key):
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    setting = TokoSetting.query.get(key)
+    if not setting:
+        return jsonify({"key": key, "value": ""})
+    return jsonify(setting.to_dict())
+
+
+@api_bp.route("/settings", methods=["POST", "OPTIONS"])
+def api_save_setting():
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    user = _get_user_from_request()
+    if not user or not user.is_admin:
+        return jsonify({"error": "Akses ditolak: Hanya admin yang dapat mengubah pengaturan logo toko"}), 403
+    
+    data = request.json or {}
+    key = data.get("key", "").strip()
+    value = data.get("value", "").strip()
+    if not key:
+        return jsonify({"error": "Key wajib diisi"}), 400
+        
+    setting = TokoSetting.query.get(key)
+    if not setting:
+        setting = TokoSetting(key=key)
+        db.session.add(setting)
+    setting.value = value
+    db.session.commit()
+    return jsonify({"status": "success", "setting": setting.to_dict()})
 
 
 # ============================================

@@ -13,7 +13,7 @@ else:
     print("   Buat file .env dari .env.example untuk mengaktifkan fitur email")
 
 from flask import Flask
-from BackEnd.Database.database import Produk, User, db
+from BackEnd.Database.database import Produk, User, TokoSetting, db
 from BackEnd.Model.products import PRODUCT_SEEDS
 from BackEnd.View.routes import register_routes
 from BackEnd.Services.email_service import init_mail
@@ -41,8 +41,16 @@ def create_app():
         db.create_all()
         sync_seed_products()
         seed_demo_user()
+        seed_settings()
 
     return app
+
+
+def seed_settings():
+    if not TokoSetting.query.filter_by(key="logo").first():
+        logo_setting = TokoSetting(key="logo", value="")
+        db.session.add(logo_setting)
+        db.session.commit()
 
 
 def seed_demo_user():
@@ -76,17 +84,18 @@ def seed_demo_user():
 
 
 def sync_seed_products():
-    for data in PRODUCT_SEEDS:
-        produk = Produk.query.get(data["id"])
-        if produk is None:
-            produk = Produk(id=data["id"])
+    if Produk.query.count() == 0:
+        for data in PRODUCT_SEEDS:
+            produk = Produk(
+                id=data["id"],
+                nama=data["nama"],
+                harga=data["harga"],
+                kategori=data["kategori"],
+                img=data["img"],
+                desc=data["desc"]
+            )
             db.session.add(produk)
-        produk.nama = data["nama"]
-        produk.harga = data["harga"]
-        produk.kategori = data["kategori"]
-        produk.img = data["img"]
-        produk.desc = data["desc"]
-    db.session.commit()
+        db.session.commit()
 
 
 if __name__ == "__main__":

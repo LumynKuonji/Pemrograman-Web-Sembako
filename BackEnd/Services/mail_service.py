@@ -87,7 +87,7 @@ def send_email(to_email, subject, html_content):
     # Redirection untuk development (jika diset di .env)
     redirect_to = os.environ.get("MAIL_REDIRECT_TO")
     original_recipient = to_email
-    if redirect_to:
+    if redirect_to and redirect_to.strip():
         to_email = redirect_to.strip()
         subject = f"[DEV REDIRECT to {original_recipient}] {subject}"
         

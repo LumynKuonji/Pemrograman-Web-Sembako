@@ -46,10 +46,9 @@ def send_email(recipient, subject, html_body, email_type='general'):
         tuple: (success: bool, error_message: str or None)
     """
     try:
-        # Redirection untuk development (jika diset di .env)
         redirect_to = os.getenv("MAIL_REDIRECT_TO")
         original_recipient = recipient
-        if redirect_to:
+        if redirect_to and redirect_to.strip():
             recipient = redirect_to.strip()
             subject = f"[DEV REDIRECT to {original_recipient}] {subject}"
             
