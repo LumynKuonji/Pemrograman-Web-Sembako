@@ -1668,8 +1668,9 @@ button {
 
 .reco-card img {
   width: 100%;
-  height: 100px;
+  aspect-ratio: 1/1;
   object-fit: cover;
+  background: #f1f5f9;
   cursor: pointer;
 }
 
@@ -2495,4 +2496,21 @@ textarea {
 
 .settings-tab-content.active {
   display: block;
+}
+
+/* Circular Crop Mask only for Profile Crop Modal */
+#profileCropModal .cropper-view-box,
+#profileCropModal .cropper-face {
+  border-radius: 50% !important;
+  outline: none !important;
+}
+
+#profileCropModal .cropper-line, 
+#profileCropModal .cropper-point {
+  background-color: var(--primary) !important;
+}
+
+#profileCropModal .cropper-bg {
+  background-image: none !important;
+  background-color: #cbd5e1 !important;
 }

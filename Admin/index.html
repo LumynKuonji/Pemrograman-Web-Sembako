@@ -21,7 +21,7 @@
   </script>
 
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="css/admin.css">
+  <link rel="stylesheet" href="css/admin.css?v=font-fix-1">
   <!-- Cropper.js for Store Logo Crop -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 </head>
@@ -195,10 +195,28 @@
           
           <div class="form-group">
             <label for="productImg">Foto Produk</label>
-            <input type="file" id="productImg" class="form-control" accept="image/*">
+            <div class="custom-file-upload" onclick="document.getElementById('productImg').click()">
+              <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              <div class="upload-text">
+                <span class="upload-title">Pilih Berkas Foto Baru</span>
+                <span id="uploadSubtitle" class="upload-subtitle">Klik di sini untuk mengunggah gambar produk</span>
+              </div>
+            </div>
+            <input type="file" id="productImg" accept="image/*" style="display: none;">
+            
             <div class="image-preview-container">
               <img id="imgPreview" src="" alt="Pratinjau Gambar" style="display: none;">
               <span style="color: var(--text-muted); font-size: 13px;" id="previewPlaceholder">Pratinjau gambar akan tampil di sini</span>
+            </div>
+            <div style="display: flex; justify-content: center; width: 100%;">
+              <button type="button" id="btnCropProduct" class="btn-crop-product" style="display: none;" onclick="cropCurrentProductImage()">
+                <svg style="width:14px;height:14px;margin-right:4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"></path><path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"></path></svg>
+                <span>Potong Gambar</span>
+              </button>
             </div>
           </div>
           
@@ -234,6 +252,28 @@
       <div class="modal-footer" style="padding: 16px 20px; background: #ffffff; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px;">
         <button type="button" class="btn-secondary" onclick="closeCropModal()">Batal</button>
         <button type="button" class="btn-primary" onclick="applyLogoCrop()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Crop Modal Overlay -->
+  <div id="productCropModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 480px;">
+      <div class="modal-header">
+        <h2>Potong Foto Produk</h2>
+        <span class="btn-close-modal" onclick="closeProductCropModal()">&times;</span>
+      </div>
+      <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; background: #f8fafc;">
+        <p style="font-size: 13px; color: var(--text-muted); text-align: center; margin: 0 0 4px 0; line-height: 1.5;">
+          Geser atau sesuaikan area kotak di bawah agar foto produk sesuai dengan frame kotak (1:1).
+        </p>
+        <div style="width: 100%; max-height: 320px; min-height: 200px; background-color: #cbd5e1; overflow: hidden; border-radius: var(--radius-sm); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;">
+          <img id="productCropImageSource" src="" style="max-width: 100%; display: block;" alt="Foto produk untuk dipotong">
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 16px 20px; background: #ffffff; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="btn-secondary" onclick="closeProductCropModal()">Batal</button>
+        <button type="button" class="btn-primary" onclick="applyProductCrop()">Terapkan</button>
       </div>
     </div>
   </div>

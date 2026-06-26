@@ -37,11 +37,13 @@ const MBA_RULES = [
 ];
 const MBA_DEFAULT_IDS = [1, 25, 26, 5, 13];
 
+const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23cbd5e1'><circle cx='12' cy='12' r='12' fill='%23f1f5f9'/><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%2394a3b8'/></svg>";
+
 const GUEST_PROFILE = {
   nama: "Tamu",
   email: "Belum login — masuk untuk fitur lengkap",
   telepon: "-",
-  foto: "https://api.dicebear.com/7.x/initials/svg?seed=Guest&backgroundColor=7fb8b3",
+  foto: DEFAULT_AVATAR,
 };
 
 const API_BASE = "http://127.0.0.1:5000/api";
@@ -146,7 +148,7 @@ const DEMO_USERS = [
     password: "123456",
     nama: "Moreno",
     telepon: "+62 812-7891-6777",
-    foto: "https://i.pravatar.cc/150?img=68",
+    foto: DEFAULT_AVATAR,
   },
 ];
 
@@ -181,6 +183,7 @@ let userProfile = JSON.parse(localStorage.getItem("sembako_user")) || {
   ...DEMO_USERS[0],
   password: "123456",
 };
+let profileCropper = null;
 
 function isLoggedIn() {
   return !!(authSession && authSession.email);
@@ -276,7 +279,6 @@ function setAuthSession(user, token) {
   userProfile = { ...user, password: userProfile?.password };
   localStorage.setItem("sembako_session", JSON.stringify(authSession));
   localStorage.setItem("sembako_user", JSON.stringify(userProfile));
-  
   // Jika user adalah admin, simpan juga session admin
   if (user.is_admin) {
     localStorage.setItem("sembako_admin_session", JSON.stringify({
@@ -1685,7 +1687,12 @@ function renderUserProfile() {
     }
   }
   if (emailEl) emailEl.textContent = profile.email;
-  if (avatarEl) avatarEl.src = profile.foto;
+  if (avatarEl) {
+    avatarEl.src = profile.foto || DEFAULT_AVATAR;
+    avatarEl.onerror = function() {
+      this.src = DEFAULT_AVATAR;
+    };
+  }
 }
 
 function updateProfileGuestUI() {
@@ -1711,7 +1718,13 @@ function openAccountSettings() {
   document.getElementById("user_nama").value = userProfile.nama;
   document.getElementById("user_email").value = userProfile.email;
   document.getElementById("user_telepon").value = userProfile.telepon;
-  document.getElementById("previewFoto").src = userProfile.foto;
+  const previewFoto = document.getElementById("previewFoto");
+  if (previewFoto) {
+    previewFoto.src = userProfile.foto || DEFAULT_AVATAR;
+    previewFoto.onerror = function() {
+      this.src = DEFAULT_AVATAR;
+    };
+  }
 
   const firstTabBtn = document.querySelector(".settings-tabs .tab-btn");
   if (firstTabBtn) switchSettingsTab("profile", firstTabBtn);
@@ -1735,9 +1748,69 @@ function previewImage(event) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = function (e) {
-    document.getElementById("previewFoto").src = e.target.result;
+    openProfileCropModal(e.target.result);
   };
   reader.readAsDataURL(file);
+}
+
+function openProfileCropModal(imageSrc) {
+  const profileCropImageSource = document.getElementById("profileCropImageSource");
+  if (!profileCropImageSource) return;
+  
+  profileCropImageSource.src = imageSrc;
+  
+  const modal = document.getElementById("profileCropModal");
+  if (modal) modal.style.display = "flex";
+  
+  if (profileCropper) {
+    profileCropper.destroy();
+  }
+  
+  setTimeout(() => {
+    profileCropper = new Cropper(profileCropImageSource, {
+      aspectRatio: 1,
+      viewMode: 1,
+      dragMode: 'move',
+      autoCropArea: 0.9,
+      restore: false,
+      guides: true,
+      center: true,
+      highlight: false,
+      cropBoxMovable: true,
+      cropBoxResizable: true,
+      toggleDragModeOnDblclick: false,
+    });
+  }, 200);
+}
+
+function closeProfileCropModal() {
+  const modal = document.getElementById("profileCropModal");
+  if (modal) modal.style.display = "none";
+  
+  if (profileCropper) {
+    profileCropper.destroy();
+    profileCropper = null;
+  }
+  
+  const fileInput = document.getElementById("fotoInput");
+  if (fileInput) fileInput.value = "";
+}
+
+function applyProfileCrop() {
+  if (!profileCropper) return;
+  
+  const canvas = profileCropper.getCroppedCanvas({
+    width: 200,
+    height: 200,
+    imageSmoothingEnabled: true,
+    imageSmoothingQuality: 'high',
+  });
+  
+  if (canvas) {
+    const croppedBase64 = canvas.toDataURL('image/jpeg', 0.9);
+    document.getElementById("previewFoto").src = croppedBase64;
+    closeProfileCropModal();
+  }
 }
 
 function saveAccountSettings() {

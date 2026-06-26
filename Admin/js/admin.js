@@ -4,6 +4,8 @@ let productsList = [];
 let editingProductId = null;
 let storeCropper = null;
 let storeCroppedBlob = null;
+let productCropper = null;
+let productCroppedBlob = null;
 
 // DOM Elements
 const productsTableBody = document.getElementById("productsTableBody");
@@ -26,17 +28,20 @@ const imgPreview = document.getElementById("imgPreview");
 const previewPlaceholder = document.getElementById("previewPlaceholder");
 
 function updateImagePreview(srcOrFile) {
+  const btnCropProduct = document.getElementById("btnCropProduct");
   if (srcOrFile) {
     if (typeof srcOrFile === "string") {
       imgPreview.src = srcOrFile;
       imgPreview.style.display = "block";
       previewPlaceholder.style.display = "none";
+      if (btnCropProduct) btnCropProduct.style.display = "inline-flex";
     } else if (srcOrFile instanceof File) {
       const reader = new FileReader();
       reader.onload = (e) => {
         imgPreview.src = e.target.result;
         imgPreview.style.display = "block";
         previewPlaceholder.style.display = "none";
+        if (btnCropProduct) btnCropProduct.style.display = "inline-flex";
       };
       reader.readAsDataURL(srcOrFile);
     }
@@ -44,6 +49,7 @@ function updateImagePreview(srcOrFile) {
     imgPreview.style.display = "none";
     imgPreview.src = "";
     previewPlaceholder.style.display = "block";
+    if (btnCropProduct) btnCropProduct.style.display = "none";
   }
 }
 
@@ -56,12 +62,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Event Listeners
 function setupEventListeners() {
-  // Live Image Preview in Modal
+  // Live Image Preview in Modal -> triggers Crop Modal
   inputImg.addEventListener("change", () => {
     if (inputImg.files && inputImg.files[0]) {
-      updateImagePreview(inputImg.files[0]);
+      const file = inputImg.files[0];
+      const uploadSubtitle = document.getElementById("uploadSubtitle");
+      if (uploadSubtitle) {
+        uploadSubtitle.textContent = `File dipilih: ${file.name}`;
+        uploadSubtitle.style.color = "var(--primary)";
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        openProductCropModal(e.target.result);
+      };
+      reader.readAsDataURL(file);
     } else {
+      productCroppedBlob = null;
       updateImagePreview(null);
+      const uploadSubtitle = document.getElementById("uploadSubtitle");
+      if (uploadSubtitle) {
+        uploadSubtitle.textContent = "Klik di sini untuk mengunggah gambar produk";
+        uploadSubtitle.style.color = "";
+      }
     }
   });
 
@@ -205,7 +227,13 @@ function openAddModal() {
   editingProductId = null;
   modalTitle.textContent = "Tambah Produk Baru";
   productForm.reset();
+  productCroppedBlob = null;
   updateImagePreview("");
+  const uploadSubtitle = document.getElementById("uploadSubtitle");
+  if (uploadSubtitle) {
+    uploadSubtitle.textContent = "Klik di sini untuk mengunggah gambar produk";
+    uploadSubtitle.style.color = "";
+  }
   productModal.classList.add("active");
 }
 
@@ -221,6 +249,13 @@ function openEditModal(id) {
   inputKategori.value = p.kategori;
   inputImg.value = ""; // Reset file input
   inputDesc.value = p.desc || "";
+  productCroppedBlob = null;
+
+  const uploadSubtitle = document.getElementById("uploadSubtitle");
+  if (uploadSubtitle) {
+    uploadSubtitle.textContent = "Klik di sini untuk mengganti gambar produk";
+    uploadSubtitle.style.color = "";
+  }
 
   updateImagePreview(p.img || "");
 
@@ -251,7 +286,9 @@ async function handleFormSubmit(e) {
   formData.append("kategori", kategori);
   formData.append("desc", desc);
   
-  if (inputImg.files && inputImg.files[0]) {
+  if (productCroppedBlob) {
+    formData.append("img", productCroppedBlob, "product_cropped.jpg");
+  } else if (inputImg.files && inputImg.files[0]) {
     formData.append("img", inputImg.files[0]);
   }
 
@@ -589,5 +626,91 @@ function applyLogoCrop() {
       
       closeCropModal();
     }, 'image/png');
+  }
+}
+
+// Product Crop Modal Helper Functions
+function openProductCropModal(imageSrc) {
+  const productCropImageSource = document.getElementById("productCropImageSource");
+  if (!productCropImageSource) return;
+  
+  // Set crossorigin if it's a remote URL from our API or other host
+  if (imageSrc.startsWith('http')) {
+    productCropImageSource.setAttribute('crossorigin', 'anonymous');
+  } else {
+    productCropImageSource.removeAttribute('crossorigin');
+  }
+  
+  productCropImageSource.src = imageSrc;
+  
+  const modal = document.getElementById("productCropModal");
+  if (modal) modal.classList.add("active");
+  
+  if (productCropper) {
+    productCropper.destroy();
+  }
+  
+  setTimeout(() => {
+    productCropper = new Cropper(productCropImageSource, {
+      aspectRatio: 1, // 1:1 square crop for product photos
+      viewMode: 1,
+      dragMode: 'move',
+      autoCropArea: 0.9,
+      restore: false,
+      guides: true,
+      center: true,
+      highlight: false,
+      cropBoxMovable: true,
+      cropBoxResizable: true,
+      toggleDragModeOnDblclick: false,
+      checkOrientation: false,
+      checkCrossOrigin: true,
+    });
+  }, 200);
+}
+
+function closeProductCropModal() {
+  const modal = document.getElementById("productCropModal");
+  if (modal) modal.classList.remove("active");
+  
+  if (productCropper) {
+    productCropper.destroy();
+    productCropper = null;
+  }
+  
+  // If the user cancelled crop and there is no previous cropped blob, reset input
+  if (!productCroppedBlob) {
+    const fileInput = document.getElementById("productImg");
+    if (fileInput) fileInput.value = "";
+  }
+}
+
+function applyProductCrop() {
+  if (!productCropper) return;
+  
+  const canvas = productCropper.getCroppedCanvas({
+    width: 400,
+    height: 400,
+    imageSmoothingEnabled: true,
+    imageSmoothingQuality: 'high',
+  });
+  
+  if (canvas) {
+    canvas.toBlob((blob) => {
+      productCroppedBlob = blob;
+      
+      // Update preview with cropped local object URL
+      const croppedUrl = URL.createObjectURL(blob);
+      updateImagePreview(croppedUrl);
+      
+      closeProductCropModal();
+    }, 'image/jpeg', 0.9);
+  }
+}
+
+function cropCurrentProductImage() {
+  const imgPreview = document.getElementById("imgPreview");
+  if (imgPreview && imgPreview.src && imgPreview.style.display !== "none") {
+    openProductCropModal(imgPreview.src);
   }
 }
