@@ -2,6 +2,8 @@ const API_BASE = "http://127.0.0.1:5000/api";
 
 let productsList = [];
 let editingProductId = null;
+let storeCropper = null;
+let storeCroppedBlob = null;
 
 // DOM Elements
 const productsTableBody = document.getElementById("productsTableBody");
@@ -62,6 +64,25 @@ function setupEventListeners() {
       updateImagePreview(null);
     }
   });
+
+  // Live Store Logo Preview in Topbar
+  const storeLogoInput = document.getElementById("storeLogoInput");
+  const storeLogoFilename = document.getElementById("storeLogoFilename");
+  const storeLogoPreview = document.getElementById("storeLogoPreview");
+  const storeLogoPlaceholder = document.getElementById("storeLogoPlaceholder");
+
+  if (storeLogoInput) {
+    storeLogoInput.addEventListener("change", () => {
+      if (storeLogoInput.files && storeLogoInput.files[0]) {
+        const file = storeLogoInput.files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          openCropModal(e.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
 
   // Search & Filter
   searchInput.addEventListener("input", filterAndRenderProducts);
@@ -170,12 +191,8 @@ function renderTable(products) {
       <td>ID: ${p.id}</td>
       <td>
         <div class="action-buttons">
-          <button class="btn-action btn-edit" title="Edit Produk" onclick="openEditModal(${p.id})">
-            <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4L18.5 2.5z"></path></svg>
-          </button>
-          <button class="btn-action btn-delete" title="Hapus Produk" onclick="confirmDelete(${p.id}, '${p.nama}')">
-            <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-          </button>
+          <button class="btn-action-text btn-edit-text" onclick="openEditModal(${p.id})">Edit</button>
+          <button class="btn-action-text btn-delete-text" onclick="confirmDelete(${p.id}, '${p.nama}')">Hapus</button>
         </div>
       </td>
     `;
@@ -376,6 +393,8 @@ function handleAdminLogout() {
   }).then((result) => {
     if (result.isConfirmed) {
       localStorage.removeItem("sembako_admin_session");
+      localStorage.removeItem("sembako_session");
+      localStorage.removeItem("sembako_user");
       window.location.href = "login.html";
     }
   });
@@ -384,7 +403,7 @@ function handleAdminLogout() {
 // Load Store Logo on Admin Page Load
 async function loadStoreLogo() {
   const preview = document.getElementById("storeLogoPreview");
-  const container = document.getElementById("storeLogoPreviewContainer");
+  const placeholder = document.getElementById("storeLogoPlaceholder");
   if (!preview) return;
   try {
     const res = await fetch(`${API_BASE}/settings/logo`);
@@ -392,7 +411,11 @@ async function loadStoreLogo() {
       const data = await res.json();
       if (data && data.value) {
         preview.src = data.value;
-        container.style.display = "flex";
+        preview.style.display = "block";
+        if (placeholder) placeholder.style.display = "none";
+      } else {
+        preview.style.display = "none";
+        if (placeholder) placeholder.style.display = "flex";
       }
     }
   } catch (error) {
@@ -401,21 +424,20 @@ async function loadStoreLogo() {
 }
 
 // Save Store Logo (Upload File)
+// Save Store Logo (Upload File)
 async function saveStoreLogo() {
-  const fileInput = document.getElementById("storeLogoInput");
-  if (!fileInput || fileInput.files.length === 0) {
+  if (!storeCroppedBlob) {
     Swal.fire({
       icon: 'warning',
       title: 'Pilih Gambar',
-      text: 'Silakan pilih file logo gambar terlebih dahulu sebelum menyimpan.',
+      text: 'Silakan pilih dan potong file logo gambar terlebih dahulu sebelum menyimpan.',
       confirmButtonColor: '#5a8f8a',
     });
     return;
   }
 
-  const file = fileInput.files[0];
   const formData = new FormData();
-  formData.append("logo", file);
+  formData.append("logo", storeCroppedBlob, "logo_cropped.png");
 
   Swal.fire({
     title: 'Mengupload Logo...',
@@ -441,14 +463,27 @@ async function saveStoreLogo() {
 
     // Update preview
     const preview = document.getElementById("storeLogoPreview");
-    const container = document.getElementById("storeLogoPreviewContainer");
-    if (preview && container) {
+    const placeholder = document.getElementById("storeLogoPlaceholder");
+    if (preview) {
       preview.src = result.value;
-      container.style.display = "flex";
+      preview.style.display = "block";
+      if (placeholder) placeholder.style.display = "none";
     }
 
-    // Reset file input
-    fileInput.value = "";
+    const storeLogoFilename = document.getElementById("storeLogoFilename");
+    if (storeLogoFilename) {
+      storeLogoFilename.textContent = "Logo berhasil disimpan!";
+      storeLogoFilename.style.color = "var(--success)";
+      setTimeout(() => {
+        storeLogoFilename.textContent = "Pilih file logo...";
+        storeLogoFilename.style.color = "var(--text-muted)";
+      }, 3000);
+    }
+
+    // Reset file input & crop state
+    const fileInput = document.getElementById("storeLogoInput");
+    if (fileInput) fileInput.value = "";
+    storeCroppedBlob = null;
 
     Swal.close();
     Swal.fire({
@@ -469,5 +504,90 @@ async function saveStoreLogo() {
       text: msg,
       confirmButtonColor: '#5a8f8a',
     });
+  }
+}
+
+// Crop Modal Helper Functions
+function openCropModal(imageSrc) {
+  const cropImageSource = document.getElementById("cropImageSource");
+  if (!cropImageSource) return;
+  
+  cropImageSource.src = imageSrc;
+  
+  const modal = document.getElementById("cropModal");
+  if (modal) modal.classList.add("active");
+  
+  // Initialize Cropper
+  if (storeCropper) {
+    storeCropper.destroy();
+  }
+  
+  // Wait for the modal animation and image load so Cropper computes dimensions correctly
+  setTimeout(() => {
+    storeCropper = new Cropper(cropImageSource, {
+      aspectRatio: 1, // 1:1 ratio for a square/circle logo
+      viewMode: 1,
+      dragMode: 'move',
+      autoCropArea: 0.9,
+      restore: false,
+      guides: true,
+      center: true,
+      highlight: false,
+      cropBoxMovable: true,
+      cropBoxResizable: true,
+      toggleDragModeOnDblclick: false,
+    });
+  }, 200);
+}
+
+function closeCropModal() {
+  const modal = document.getElementById("cropModal");
+  if (modal) modal.classList.remove("active");
+  
+  if (storeCropper) {
+    storeCropper.destroy();
+    storeCropper = null;
+  }
+  
+  const fileInput = document.getElementById("storeLogoInput");
+  if (fileInput) fileInput.value = "";
+}
+
+function applyLogoCrop() {
+  if (!storeCropper) return;
+  
+  // Get cropped canvas
+  const canvas = storeCropper.getCroppedCanvas({
+    width: 250,
+    height: 250,
+    imageSmoothingEnabled: true,
+    imageSmoothingQuality: 'high',
+  });
+  
+  if (canvas) {
+    canvas.toBlob((blob) => {
+      storeCroppedBlob = blob;
+      
+      // Update preview with cropped local object URL
+      const croppedUrl = URL.createObjectURL(blob);
+      const storeLogoPreview = document.getElementById("storeLogoPreview");
+      const storeLogoPlaceholder = document.getElementById("storeLogoPlaceholder");
+      
+      if (storeLogoPreview) {
+        storeLogoPreview.src = croppedUrl;
+        storeLogoPreview.style.display = "block";
+      }
+      if (storeLogoPlaceholder) {
+        storeLogoPlaceholder.style.display = "none";
+      }
+      
+      const storeLogoFilename = document.getElementById("storeLogoFilename");
+      if (storeLogoFilename) {
+        storeLogoFilename.textContent = "Potongan siap disimpan!";
+        storeLogoFilename.style.color = "var(--primary)";
+      }
+      
+      closeCropModal();
+    }, 'image/png');
   }
 }

@@ -460,3 +460,57 @@ body:not(.swal2-toast-shown) .swal2-container:not(.swal2-toast-container) {
   color: #0f172a !important;
   transform: translateY(-2px) !important;
 }
+
+/* Custom Input Styling in SweetAlert */
+.swal2-popup .swal2-input,
+.swal2-popup .swal2-file,
+.swal2-popup .swal2-textarea,
+.swal2-popup .swal2-select,
+.swal2-popup .swal2-radio,
+.swal2-popup .swal2-checkbox {
+  border: 1.5px solid #cbd5e1 !important;
+  border-radius: 10px !important;
+  font-size: 14px !important;
+  color: #1f2937 !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+  box-sizing: border-box !important;
+  height: 46px !important;
+  margin: 16px auto !important;
+  padding: 10px 16px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.swal2-popup .swal2-input:focus,
+.swal2-popup .swal2-textarea:focus,
+.swal2-popup .swal2-select:focus {
+  border-color: #5a8f8a !important;
+  box-shadow: 0 0 0 3px rgba(90, 143, 138, 0.15) !important;
+  outline: none !important;
+}
+
+.swal2-popup .swal2-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Custom OTP Input override */
+#swal-otp {
+  max-width: 240px !important;
+  height: 52px !important;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  letter-spacing: 6px !important;
+  text-align: center !important;
+  border: 2px solid #5a8f8a !important;
+  color: #0f172a !important;
+  border-radius: 12px !important;
+  background: #f8fafc !important;
+}
+
+#swal-otp:focus {
+  background: #ffffff !important;
+  border-color: #3e6662 !important;
+  box-shadow: 0 0 0 4px rgba(90, 143, 138, 0.2) !important;
+}

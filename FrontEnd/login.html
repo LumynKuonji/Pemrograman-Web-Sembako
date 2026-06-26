@@ -80,18 +80,16 @@
       </p>
 
       <div class="login-card">
-        <!-- Tab selector -->
-        <div class="login-tabs">
-          <button id="tabPassword" class="tab-btn active" onclick="switchLoginTab('password')">Dengan Password</button>
-          <button id="tabOTP" class="tab-btn" onclick="switchLoginTab('otp')">Dengan OTP (Email)</button>
-        </div>
+
 
         <label>Email</label>
         <input
           type="email"
           id="loginEmail"
           placeholder="Masukkan email Anda"
-          autocomplete="email"
+          autocomplete="new-password"
+          readonly
+          onfocus="this.removeAttribute('readonly')"
         />
 
         <!-- Password section -->
@@ -104,26 +102,14 @@
             type="password"
             id="loginPassword"
             placeholder="Minimal 6 karakter"
-            autocomplete="current-password"
+            autocomplete="new-password"
+            readonly
+            onfocus="this.removeAttribute('readonly')"
             style="margin-top: 8px;"
           />
         </div>
 
-        <!-- OTP section (hidden by default) -->
-        <div id="otpSection" style="display: none; margin-top: 10px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <label style="margin-bottom: 0;">Verifikasi OTP</label>
-            <button class="btn-secondary" id="btnRequestOTP" onclick="requestLoginOTP()" style="padding: 6px 12px; font-size: 12px; white-space: nowrap;">Kirim Kode OTP</button>
-          </div>
-          
-          <input
-            type="text"
-            id="loginOTP"
-            placeholder="Masukkan 6 digit OTP"
-            maxlength="6"
-            style="letter-spacing: 4px; text-align: center; font-size: 18px; font-weight: bold; margin-top: 8px;"
-          />
-        </div>
+
 
         <button class="btn-primary login-btn" onclick="submitLogin()" style="margin-top: 20px;">
           Masuk
@@ -135,11 +121,7 @@
           Belum punya akun? <a href="register.html">Daftar di sini</a>
         </p>
 
-        <div class="login-hint">
-          <strong>Sistem Terintegrasi Mail:</strong><br />
-          Email OTP / verifikasi dikirim nyata (jika SMTP aktif) atau tersimulasi di folder:<br />
-          <code style="word-break: break-all; background: #edf2f7; padding: 2px 6px; border-radius: 4px; font-size: 11px;">BackEnd/sent_emails/</code>
-        </div>
+
       </div>
     </div>
 
@@ -150,7 +132,28 @@
 
 
       document.addEventListener("DOMContentLoaded", () => {
-        if (isLoggedIn()) window.location.href = getReturnUrl() || "index.html";
+        // Clear autofill on load
+        setTimeout(() => {
+          const emailInput = document.getElementById("loginEmail");
+          const passInput = document.getElementById("loginPassword");
+          if (emailInput) {
+            emailInput.value = "";
+            emailInput.removeAttribute("readonly");
+          }
+          if (passInput) {
+            passInput.value = "";
+            passInput.removeAttribute("readonly");
+          }
+        }, 50);
+
+        if (isLoggedIn()) {
+          const user = JSON.parse(localStorage.getItem("sembako_user"));
+          if (user && user.is_admin) {
+            window.location.href = "../Admin/index.html";
+          } else {
+            window.location.href = getReturnUrl() || "index.html";
+          }
+        }
         
         document.getElementById("loginPassword")?.addEventListener("keydown", (e) => {
           if (e.key === "Enter") submitLogin();

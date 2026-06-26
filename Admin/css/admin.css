@@ -1,6 +1,7 @@
 :root {
   --primary: #5a8f8a;
   --primary-light: #7fb8b3;
+  --primary-dark: #3b5e5a;
   --primary-glow: rgba(127, 184, 179, 0.15);
   --success: #10b981;
   --danger: #ef4444;
@@ -23,6 +24,14 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+button {
+  border: none;
+  outline: none;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 body {
@@ -58,11 +67,12 @@ body {
 }
 
 .sidebar-logo {
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 18px;
+  font-weight: 700;
   letter-spacing: 0.5px;
   background: linear-gradient(135deg, var(--primary-light), #fff);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -83,6 +93,7 @@ body {
   border-radius: var(--radius-sm);
   color: #94a3b8;
   font-weight: 500;
+  text-decoration: none;
   transition: var(--transition);
 }
 
@@ -142,8 +153,8 @@ body {
 }
 
 .page-title h1 {
-  font-size: 28px;
-  font-weight: 800;
+  font-size: 24px;
+  font-weight: 700;
   color: var(--dark);
 }
 
@@ -179,18 +190,18 @@ body {
 }
 
 .metric-info h3 {
-  font-size: 14px;
+  font-size: 12px;
   color: var(--text-muted);
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .metric-info .value {
-  font-size: 28px;
-  font-weight: 800;
+  font-size: 22px;
+  font-weight: 600;
   color: var(--dark);
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .metric-icon {
@@ -238,7 +249,7 @@ body {
 }
 
 .search-input {
-  padding: 10px 16px 10px 40px;
+  padding: 10px 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   outline: none;
@@ -250,15 +261,6 @@ body {
 .search-input:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-glow);
-}
-
-.search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  pointer-events: none;
 }
 
 .select-filter {
@@ -291,8 +293,9 @@ body {
 }
 
 .btn-primary:hover {
-  background-color: var(--primary-dark);
-  transform: translateY(-1px);
+  background-color: #649c97;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(90, 143, 138, 0.3);
 }
 
 /* Product Table */
@@ -378,33 +381,35 @@ body {
   gap: 8px;
 }
 
-.btn-action {
-  width: 36px;
-  height: 36px;
+.btn-action-text {
+  padding: 8px 14px;
   border-radius: var(--radius-sm);
-  display: flex;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  transition: var(--transition);
 }
 
-.btn-edit {
+.btn-edit-text {
   color: var(--primary);
   background-color: var(--primary-glow);
 }
 
-.btn-edit:hover {
+.btn-edit-text:hover {
   background-color: var(--primary);
   color: #fff;
 }
 
-.btn-delete {
+.btn-delete-text {
   color: var(--danger);
   background-color: rgba(239, 68, 68, 0.1);
 }
 
-.btn-delete:hover {
+.btn-delete-text:hover {
   background-color: var(--danger);
   color: #fff;
 }
@@ -459,8 +464,8 @@ body {
 }
 
 .modal-header h2 {
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--dark);
 }
 
@@ -530,7 +535,8 @@ textarea.form-control {
 
 .btn-secondary {
   padding: 10px 20px;
-  border: 1px solid var(--border);
+  border: none;
+  background-color: #f1f5f9;
   color: var(--text);
   border-radius: var(--radius-sm);
   font-weight: 600;
@@ -539,7 +545,7 @@ textarea.form-control {
 }
 
 .btn-secondary:hover {
-  background-color: #f1f5f9;
+  background-color: #e2e8f0;
 }
 
 /* Image Preview in Modal */
@@ -562,6 +568,126 @@ textarea.form-control {
   object-fit: contain;
 }
 
+/* Store Logo Edit Widget */
+.logo-settings-topbar {
+  background: var(--card-bg, #fff);
+  padding: 10px 16px;
+  border-radius: var(--radius, 12px);
+  border: 1px solid var(--border, #cbd5e1);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--shadow, 0 1px 3px rgba(0,0,0,0.05));
+}
+
+.store-logo-wrapper {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px dashed #94a3b8;
+  padding: 2px;
+  background: #f8fafc;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.store-logo-wrapper:hover {
+  border-color: var(--primary);
+  transform: scale(1.05);
+}
+
+.store-logo-preview-container {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+}
+
+#storeLogoPreview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.store-logo-placeholder {
+  font-size: 14px;
+  font-weight: 700;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.store-logo-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: var(--transition);
+  border-radius: 50%;
+}
+
+.store-logo-wrapper:hover .store-logo-overlay {
+  opacity: 1;
+}
+
+.store-logo-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.store-logo-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.store-logo-filename {
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-upload-logo {
+  background-color: var(--primary);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-upload-logo:hover {
+  background-color: var(--primary-light);
+  transform: translateY(-1px);
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .sidebar {
@@ -574,4 +700,28 @@ textarea.form-control {
     margin-left: 0;
     padding: 20px;
   }
+}
+
+/* Cropper.js Overrides for Circular Crop Mask */
+.cropper-view-box,
+.cropper-face {
+  border-radius: 50% !important;
+  outline: none !important;
+}
+
+.cropper-line, .cropper-point {
+  background-color: var(--primary) !important;
+}
+
+.cropper-bg {
+  background-image: none !important;
+  background-color: #cbd5e1 !important;
+}
+
+/* Ensure store logo preview is always a perfect circle and fills the container */
+#storeLogoPreview {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 50% !important;
 }

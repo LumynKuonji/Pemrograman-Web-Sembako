@@ -276,6 +276,17 @@ function setAuthSession(user, token) {
   userProfile = { ...user, password: userProfile?.password };
   localStorage.setItem("sembako_session", JSON.stringify(authSession));
   localStorage.setItem("sembako_user", JSON.stringify(userProfile));
+  
+  // Jika user adalah admin, simpan juga session admin
+  if (user.is_admin) {
+    localStorage.setItem("sembako_admin_session", JSON.stringify({
+      token: token,
+      email: user.email,
+      nama: user.nama,
+      isAdmin: true
+    }));
+  }
+
   const idx = registeredUsers.findIndex((u) => u.email === user.email);
   const entry = {
     email: user.email,
@@ -493,7 +504,11 @@ async function handleLogin() {
     setAuthSession(api.data.user, api.data.token);
     window.updateChatbotLock?.();
     showLoginPopup(api.data.user.nama, false, () => {
-      window.location.href = getReturnUrl() || "index.html";
+      if (api.data.user.is_admin) {
+        window.location.href = "../Admin/index.html";
+      } else {
+        window.location.href = getReturnUrl() || "index.html";
+      }
     });
     return;
   }
@@ -604,12 +619,23 @@ function showOTPVerificationModal(email, returnUrl = 'index.html') {
     html: 
       `<p style="font-size: 14px; color: #4a5568; margin-bottom: 15px;">Kami telah mengirimkan 6 digit kode OTP ke email <strong>${email}</strong>. Masukkan kode tersebut untuk memverifikasi akun Anda:</p>` +
       '<input id="swal-otp" class="swal2-input" placeholder="000000" maxlength="6" style="text-align:center; letter-spacing: 5px; font-weight:bold; font-size: 24px; max-width: 220px; margin: 15px auto;">' +
-      '<div style="margin-top: 15px;"><button type="button" id="swal-resend-btn" style="background:none;border:none;padding:0;color:#10b981;font-weight:600;font-size:14px;cursor:pointer">Kirim Ulang OTP</button></div>',
+      '<div style="margin-top: 15px;"><button type="button" id="swal-resend-btn" style="background:none;border:none;padding:0;color:#5a8f8a;font-weight:600;font-size:14px;cursor:pointer">Kirim Ulang OTP</button></div>',
     confirmButtonText: 'Verifikasi Akun',
-    confirmButtonColor: '#10b981',
     allowOutsideClick: false,
     showCancelButton: true,
     cancelButtonText: 'Batal',
+    customClass: {
+      popup: "custom-swal-popup",
+      title: "custom-swal-title",
+      htmlContainer: "custom-swal-html",
+      closeButton: "custom-swal-close-btn",
+    },
+    showClass: {
+      popup: "animate-custom-show",
+    },
+    hideClass: {
+      popup: "animate-custom-hide",
+    },
     didOpen: () => {
       const resendBtn = document.getElementById('swal-resend-btn');
       resendBtn.addEventListener('click', async (event) => {
@@ -630,7 +656,7 @@ function showOTPVerificationModal(email, returnUrl = 'index.html') {
             if (count <= 0) {
               clearInterval(interval);
               resendBtn.style.pointerEvents = 'auto';
-              resendBtn.style.color = '#10b981';
+              resendBtn.style.color = '#5a8f8a';
               resendBtn.textContent = 'Kirim Ulang OTP';
             } else {
               resendBtn.textContent = `Kirim Ulang (${count}s)`;
@@ -639,7 +665,7 @@ function showOTPVerificationModal(email, returnUrl = 'index.html') {
         } else {
           AppAlert.toast(res.data.error || "Gagal kirim ulang OTP", "top-end", 2500);
           resendBtn.style.pointerEvents = 'auto';
-          resendBtn.style.color = '#10b981';
+          resendBtn.style.color = '#5a8f8a';
           resendBtn.textContent = 'Kirim Ulang OTP';
         }
       });
@@ -658,6 +684,16 @@ function showOTPVerificationModal(email, returnUrl = 'index.html') {
       Swal.fire({
         title: 'Memverifikasi...',
         allowOutsideClick: false,
+        customClass: {
+          popup: "custom-swal-popup",
+          title: "custom-swal-title",
+        },
+        showClass: {
+          popup: "animate-custom-show",
+        },
+        hideClass: {
+          popup: "animate-custom-hide",
+        },
         didOpen: () => { Swal.showLoading(); }
       });
       const verifyRes = await apiFetch('/auth/verify-register', {
@@ -670,7 +706,18 @@ function showOTPVerificationModal(email, returnUrl = 'index.html') {
           icon: 'success',
           title: 'Verifikasi Berhasil!',
           text: 'Akun Anda aktif dan Anda berhasil masuk.',
-          confirmButtonColor: '#10b981'
+          customClass: {
+            popup: "custom-swal-popup",
+            title: "custom-swal-title",
+            htmlContainer: "custom-swal-html",
+            closeButton: "custom-swal-close-btn",
+          },
+          showClass: {
+            popup: "animate-custom-show",
+          },
+          hideClass: {
+            popup: "animate-custom-hide",
+          },
         }).then(() => {
           window.location.href = returnUrl;
         });
@@ -680,7 +727,18 @@ function showOTPVerificationModal(email, returnUrl = 'index.html') {
           title: 'Verifikasi Gagal',
           text: verifyRes.data.error || 'Kode OTP salah atau kedaluwarsa.',
           confirmButtonText: 'Coba Lagi',
-          confirmButtonColor: '#10b981'
+          customClass: {
+            popup: "custom-swal-popup",
+            title: "custom-swal-title",
+            htmlContainer: "custom-swal-html",
+            closeButton: "custom-swal-close-btn",
+          },
+          showClass: {
+            popup: "animate-custom-show",
+          },
+          hideClass: {
+            popup: "animate-custom-hide",
+          },
         }).then(() => {
           showOTPVerificationModal(email, returnUrl);
         });
@@ -696,9 +754,20 @@ async function handleForgotPassword() {
     inputLabel: 'Masukkan email terdaftar Anda',
     inputPlaceholder: 'contoh: email@anda.com',
     confirmButtonText: 'Kirim OTP',
-    confirmButtonColor: '#10b981',
     showCancelButton: true,
-    cancelButtonText: 'Batal'
+    cancelButtonText: 'Batal',
+    customClass: {
+      popup: "custom-swal-popup",
+      title: "custom-swal-title",
+      htmlContainer: "custom-swal-html",
+      closeButton: "custom-swal-close-btn",
+    },
+    showClass: {
+      popup: "animate-custom-show",
+    },
+    hideClass: {
+      popup: "animate-custom-hide",
+    },
   });
 
   if (!email) return;
@@ -706,6 +775,16 @@ async function handleForgotPassword() {
   Swal.fire({
     title: 'Mengirim...',
     allowOutsideClick: false,
+    customClass: {
+      popup: "custom-swal-popup",
+      title: "custom-swal-title",
+    },
+    showClass: {
+      popup: "animate-custom-show",
+    },
+    hideClass: {
+      popup: "animate-custom-hide",
+    },
     didOpen: () => {
       Swal.showLoading();
     }
@@ -734,9 +813,20 @@ async function handleForgotPassword() {
       '<input id="reset-confirm" type="password" class="swal2-input" placeholder="Ulangi Password Baru">',
     focusConfirm: false,
     confirmButtonText: 'Simpan Password Baru',
-    confirmButtonColor: '#10b981',
     showCancelButton: true,
     cancelButtonText: 'Batal',
+    customClass: {
+      popup: "custom-swal-popup",
+      title: "custom-swal-title",
+      htmlContainer: "custom-swal-html",
+      closeButton: "custom-swal-close-btn",
+    },
+    showClass: {
+      popup: "animate-custom-show",
+    },
+    hideClass: {
+      popup: "animate-custom-hide",
+    },
     preConfirm: () => {
       const code = document.getElementById('reset-otp').value.trim();
       const password = document.getElementById('reset-password').value;
@@ -763,6 +853,16 @@ async function handleForgotPassword() {
   Swal.fire({
     title: 'Memproses...',
     allowOutsideClick: false,
+    customClass: {
+      popup: "custom-swal-popup",
+      title: "custom-swal-title",
+    },
+    showClass: {
+      popup: "animate-custom-show",
+    },
+    hideClass: {
+      popup: "animate-custom-hide",
+    },
     didOpen: () => {
       Swal.showLoading();
     }
@@ -805,6 +905,7 @@ async function doLogout() {
       if (token) await apiFetch("/auth/logout", { method: "POST" });
       authSession = null;
       localStorage.removeItem("sembako_session");
+      localStorage.removeItem("sembako_admin_session");
       cart = [];
       saveCart();
       window.updateChatbotLock?.();
@@ -2120,11 +2221,7 @@ async function loadStoreLogo() {
       const data = await res.json();
       if (data && data.value) {
         logoElements.forEach(el => {
-          el.style.width = "auto";
-          el.style.height = "auto";
-          el.style.background = "none";
-          el.style.borderRadius = "0";
-          el.innerHTML = `<img src="${data.value}" alt="Toko Logo" style="max-height: 42px; max-width: 160px; object-fit: contain; display: block; cursor: pointer;" onclick="window.location.href='index.html'">`;
+          el.innerHTML = `<img src="${data.value}" alt="Toko Logo" onclick="window.location.href='index.html'">`;
         });
       } else {
         logoElements.forEach(el => {

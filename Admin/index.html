@@ -15,13 +15,15 @@
     (() => {
       const session = JSON.parse(localStorage.getItem("sembako_admin_session"));
       if (!session || !session.isAdmin || !session.token) {
-        window.location.href = "login.html";
+        window.location.href = "../FrontEnd/login.html";
       }
     })();
   </script>
 
   <!-- Stylesheets -->
   <link rel="stylesheet" href="css/admin.css">
+  <!-- Cropper.js for Store Logo Crop -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 </head>
 <body>
 
@@ -58,22 +60,28 @@
   <main class="main-content">
     
     <!-- Topbar Header -->
-    <div class="topbar" style="display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;">
+    <div class="topbar">
       <div class="page-title">
         <h1>Manajemen Produk</h1>
         <p>Kelola semua barang sembako yang ditawarkan kepada pelanggan.</p>
       </div>
-      <div class="logo-settings-topbar" style="background: var(--card-bg, #fff); padding: 12px 16px; border-radius: var(--radius, 12px); border: 1px solid #cbd5e1; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow, 0 1px 3px rgba(0,0,0,0.05));">
-        <div id="storeLogoPreviewContainer" style="display: none; align-items: center; justify-content: center; width: 40px; height: 40px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 4px; background: #f8fafc; overflow: hidden;">
-          <img id="storeLogoPreview" src="" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+      <div class="logo-settings-topbar">
+        <div class="store-logo-wrapper" onclick="document.getElementById('storeLogoInput').click()" title="Klik untuk mengubah logo">
+          <div id="storeLogoPreviewContainer" class="store-logo-preview-container">
+            <img id="storeLogoPreview" src="" alt="Logo Toko" style="display: none;">
+            <div id="storeLogoPlaceholder" class="store-logo-placeholder">LT</div>
+          </div>
+          <div class="store-logo-overlay">
+            <span>Ubah</span>
+          </div>
         </div>
-        <div style="display: flex; flex-direction: column;">
-          <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Logo Toko</span>
-          <input type="file" id="storeLogoInput" accept="image/*" style="font-size: 12px; max-width: 180px; outline: none; border: none; cursor: pointer;">
+        <div class="store-logo-info">
+          <span class="store-logo-label">Logo Toko</span>
+          <span id="storeLogoFilename" class="store-logo-filename">Pilih file logo...</span>
+          <input type="file" id="storeLogoInput" accept="image/*" style="display: none;">
         </div>
-        <button class="btn-primary" onclick="saveStoreLogo()" style="padding: 8px 14px; font-size: 12px; border-radius: 8px; cursor: pointer; height: fit-content; display: flex; align-items: center; gap: 6px; border: none; font-weight: 600;">
-          <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-          <span>Upload</span>
+        <button class="btn-upload-logo" onclick="saveStoreLogo()">
+          <span>Simpan</span>
         </button>
       </div>
     </div>
@@ -85,21 +93,18 @@
           <h3>Total Produk</h3>
           <div id="totalProductsVal" class="value">-</div>
         </div>
-        <div class="metric-icon">📦</div>
       </div>
       <div class="metric-card">
         <div class="metric-info">
           <h3>Jumlah Kategori</h3>
           <div id="totalCategoriesVal" class="value">-</div>
         </div>
-        <div class="metric-icon">🗂️</div>
       </div>
       <div class="metric-card">
         <div class="metric-info">
           <h3>Rata-rata Harga</h3>
           <div id="avgPriceVal" class="value">-</div>
         </div>
-        <div class="metric-icon">💰</div>
       </div>
     </section>
 
@@ -110,7 +115,6 @@
         <!-- Search and Filters -->
         <div class="search-filter-box">
           <div class="search-input-wrapper">
-            <svg class="search-icon" style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             <input type="text" id="searchInput" class="search-input" placeholder="Cari nama produk...">
           </div>
           
@@ -121,7 +125,6 @@
         
         <!-- Action Button -->
         <button class="btn-primary" onclick="openAddModal()">
-          <svg style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
           <span>Tambah Produk</span>
         </button>
       </div>
@@ -213,9 +216,34 @@
     </div>
   </div>
 
+  <!-- Logo Crop Modal Overlay -->
+  <div id="cropModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 480px;">
+      <div class="modal-header">
+        <h2>Potong Logo Toko</h2>
+        <span class="btn-close-modal" onclick="closeCropModal()">&times;</span>
+      </div>
+      <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; background: #f8fafc;">
+        <p style="font-size: 13px; color: var(--text-muted); text-align: center; margin: 0 0 4px 0; line-height: 1.5;">
+          Geser atau sesuaikan area lingkaran di bawah agar gambar logo toko terlihat rapi dan bulat sempurna.
+        </p>
+        <div style="width: 100%; max-height: 320px; min-height: 200px; background-color: #cbd5e1; overflow: hidden; border-radius: var(--radius-sm); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;">
+          <img id="cropImageSource" src="" style="max-width: 100%; display: block;" alt="Gambar logo untuk dipotong">
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 16px 20px; background: #ffffff; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="btn-secondary" onclick="closeCropModal()">Batal</button>
+        <button type="button" class="btn-primary" onclick="applyLogoCrop()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
   <!-- SweetAlert2 (matches project libraries) -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   
+  <!-- Cropper.js for Store Logo Crop -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+
   <!-- JavaScript Controller -->
   <script src="js/admin.js"></script>
 </body>
