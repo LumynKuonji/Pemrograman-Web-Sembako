@@ -3,14 +3,22 @@ from dotenv import load_dotenv
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
-# Load .env file dari root proyek
+# Load .env file dari root proyek, atau jika tidak ada gunakan BackEnd/config_mail.env
 ENV_PATH = BACKEND_ROOT.parent / ".env"
+MAIL_ENV_PATH = BACKEND_ROOT / "config_mail.env"
+
 if ENV_PATH.exists():
     load_dotenv(ENV_PATH)
-    print(f"[Email Config] Email config dimuat dari {ENV_PATH}")
+    print(f"[Email Config] Root .env dimuat dari {ENV_PATH}")
+    if MAIL_ENV_PATH.exists():
+        load_dotenv(MAIL_ENV_PATH, override=False)
+        print(f"[Email Config] Konfigurasi email tambahan dimuat dari {MAIL_ENV_PATH}")
+elif MAIL_ENV_PATH.exists():
+    load_dotenv(MAIL_ENV_PATH)
+    print(f"[Email Config] Email config dimuat dari {MAIL_ENV_PATH}")
 else:
-    print(f"[Email Config Warning] File .env tidak ditemukan di {ENV_PATH}")
-    print("   Buat file .env dari .env.example untuk mengaktifkan fitur email")
+    print(f"[Email Config Warning] File .env dan config_mail.env tidak ditemukan")
+    print("   Buat file BackEnd/config_mail.env untuk mengaktifkan fitur email")
 
 from flask import Flask
 from BackEnd.Database.database import Produk, User, TokoSetting, db
@@ -42,6 +50,10 @@ def create_app():
         sync_seed_products()
         seed_demo_user()
         seed_settings()
+        
+        # Cleanup unverified accounts yang lebih dari 1 jam
+        from BackEnd.Controller import auth_controller
+        auth_controller.cleanup_unverified_accounts(hours=1)
 
     return app
 

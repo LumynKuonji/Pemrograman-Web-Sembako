@@ -4,6 +4,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 from datetime import datetime
+from BackEnd.Database.database import EmailLog, db
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
@@ -49,42 +50,39 @@ def get_mail_config():
         "default_sender": default_sender
     }
 
-def save_email_to_sandbox(to_email, subject, html_content):
-    """Saves the sent email to BackEnd/sent_emails/ directory as an HTML file."""
-    sandbox_dir = BACKEND_ROOT / "sent_emails"
-    sandbox_dir.mkdir(parents=True, exist_ok=True)
-    
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    filename = f"{timestamp}_{to_email.replace('@', '_at_')}.html"
-    filepath = sandbox_dir / filename
-    
-    # Prepend dynamic header so the developer can see metadata
-    header_html = f"""
-    <div style="background: #f4f5f7; border-bottom: 2px solid #e2e8f0; padding: 15px; font-family: sans-serif; font-size: 14px; color: #4a5568; line-height: 1.5;">
-        <strong>[DEV SANDBOX INBOX]</strong><br>
-        <strong>Waktu:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}<br>
-        <strong>Kepada:</strong> {to_email}<br>
-        <strong>Subjek:</strong> {subject}<br>
-        <hr style="border: 0; border-top: 1px solid #cbd5e0; margin: 10px 0;">
-        <span style="color: #718096; font-size: 12px;">Catatan: Ini adalah simulasi email. File ini dapat dibuka langsung di browser Anda.</span>
-    </div>
-    """
-    
-    full_content = header_html + html_content
-    filepath.write_text(full_content, encoding="utf-8")
-    
-    # Log to a single text file too
-    log_file = BACKEND_ROOT / "sent_emails.log"
-    with open(log_file, "a", encoding="utf-8") as f:
-        f.write(f"[{datetime.now().isoformat()}] Sent to {to_email} | Subject: {subject} | File: {filepath.name}\n")
-        
-    print(f"[Mail Sandbox] Email disimulasikan ke {to_email}. Subjek: '{subject}'. Tersimpan di: {filepath.relative_to(BACKEND_ROOT.parent)}")
-    return str(filepath)
+def log_email_to_db(to_email, subject, html_content, email_type, status, error_message=None):
+    """Log email ke database"""
+    try:
+        log = EmailLog(
+            recipient=to_email,
+            subject=subject,
+            html_content=html_content,
+            email_type=email_type,
+            status=status,
+            error_message=error_message
+        )
+        db.session.add(log)
+        db.session.commit()
+        print(f"[Mail Log] Email log tersimpan untuk {to_email}")
+    except Exception as e:
+        print(f"[Mail Log Error] Gagal menyimpan log ke database: {e}")
 
-def send_email(to_email, subject, html_content):
+def send_email(to_email, subject, html_content, email_type="general"):
+    """
+    Mengirim email via SMTP atau log ke database jika provider console
+    
+    Args:
+        to_email: Email penerima
+        subject: Subject email
+        html_content: Konten HTML email
+        email_type: Tipe email ('otp', 'invoice', 'status', 'security')
+    
+    Returns:
+        tuple: (success: bool, error_message: str or None)
+    """
     config = get_mail_config()
     
-    # Redirection untuk development (jika diset di .env)
+    # Redirection untuk development (jika diset)
     redirect_to = os.environ.get("MAIL_REDIRECT_TO")
     original_recipient = to_email
     if redirect_to and redirect_to.strip():
@@ -92,8 +90,10 @@ def send_email(to_email, subject, html_content):
         subject = f"[DEV REDIRECT to {original_recipient}] {subject}"
         
     if config["provider"] == "console" or not config["smtp_server"] or not config["username"]:
-        # Log to file and console
-        return save_email_to_sandbox(original_recipient, subject, html_content), True
+        # Log ke database tanpa mengirim SMTP
+        log_email_to_db(original_recipient, subject, html_content, email_type, status="logged")
+        print(f"[Mail Console] Email disimulasikan ke {original_recipient}. Log tersimpan di database.")
+        return True, None
         
     try:
         # Create SMTP session
@@ -115,13 +115,15 @@ def send_email(to_email, subject, html_content):
         server.sendmail(config["default_sender"], to_email, msg.as_string())
         server.close()
         
+        # Log sukses ke database
+        log_email_to_db(to_email, subject, html_content, email_type, status="sent")
         print(f"[Mail SMTP] Email berhasil dikirim ke {to_email}. Subjek: '{subject}'")
-        return "SMTP Success", True
+        return True, None
     except Exception as e:
+        # Log error ke database
+        log_email_to_db(to_email, subject, html_content, email_type, status="failed", error_message=str(e))
         print(f"[Mail SMTP Error] Gagal mengirim email ke {to_email}: {e}")
-        # Fallback to sandbox if SMTP fails
-        print("[Mail Fallback] Menyimpan ke Sandbox Lokal...")
-        return save_email_to_sandbox(to_email, subject, f"<!-- SMTP Error: {e} -->" + html_content), False
+        return False, str(e)
 
 # HTML Templates
 BASE_EMAIL_TEMPLATE = """

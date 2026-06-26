@@ -223,6 +223,60 @@ def api_me():
     return jsonify({"user": user.to_dict()})
 
 
+@api_bp.route("/auth/delete-account", methods=["DELETE", "OPTIONS"])
+def api_delete_account():
+    """DELETE /api/auth/delete-account - Hapus akun sendiri (hanya unverified)"""
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    
+    data = request.json or {}
+    email = data.get("email", "").strip().lower()
+    
+    if not email:
+        return jsonify({"error": "Email wajib diisi"}), 400
+    
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"error": "User tidak ditemukan"}), 404
+    
+    # Hanya bisa delete akun sendiri jika belum terverifikasi
+    if user.is_verified:
+        return jsonify({"error": "Tidak bisa menghapus akun yang sudah terverifikasi"}), 403
+    
+    try:
+        # Hapus sessions
+        UserSession.query.filter_by(user_id=user.id).delete()
+        # Hapus keranjang
+        from BackEnd.Database.database import ItemKeranjang
+        ItemKeranjang.query.filter_by(user_id=user.id).delete()
+        # Hapus user
+        db.session.delete(user)
+        db.session.commit()
+        
+        return jsonify({"status": "success", "message": "Akun berhasil dihapus"})
+    except Exception as e:
+        return jsonify({"error": f"Gagal menghapus akun: {e}"}), 500
+
+
+@api_bp.route("/auth/cleanup-unverified", methods=["POST", "OPTIONS"])
+def api_cleanup_unverified():
+    """POST /api/auth/cleanup-unverified - Cleanup unverified accounts (maintenance)"""
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    
+    hours = request.json.get("hours", 1) if request.json else 1
+    
+    try:
+        count = auth_controller.cleanup_unverified_accounts(hours)
+        return jsonify({
+            "status": "success",
+            "message": f"Dihapus {count} akun unverified yang lebih dari {hours} jam",
+            "deleted_count": count
+        })
+    except Exception as e:
+        return jsonify({"error": f"Gagal cleanup: {e}"}), 500
+
+
 # ============================================
 # FORGOT PASSWORD ENDPOINTS
 # ============================================
@@ -704,26 +758,6 @@ def api_download_invoice(invoice_number):
 
 
 # ============================================
-# EMAIL LOG ENDPOINT
-# ============================================
-
-@api_bp.route("/email-logs", methods=["GET", "OPTIONS"])
-def api_email_logs():
-    """
-    GET /api/email-logs - Get email sending history
-    """
-    if request.method == "OPTIONS":
-        return _cors_preflight()
-    user = _get_user_from_request()
-    if not user:
-        return jsonify({"error": "Belum login"}), 401
-
-    logs = EmailLog.query.filter_by(recipient=user.email).order_by(EmailLog.sent_at.desc()).limit(50).all()
-    return jsonify({"logs": [log.to_dict() for log in logs]})
-
-
-
-# ============================================
 # SETTINGS ENDPOINTS
 # ============================================
 
@@ -763,6 +797,64 @@ def api_save_setting():
 # ============================================
 # REGISTER ROUTES
 # ============================================
+
+@api_bp.route("/admin/email-logs", methods=["GET", "OPTIONS"])
+def api_email_logs():
+    """GET /api/admin/email-logs - View email logs (admin only)"""
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    
+    user = _get_user_from_request()
+    if not user or not user.is_admin:
+        return jsonify({"error": "Akses ditolak: Hanya admin"}), 403
+    
+    # Filter by email_type, recipient, status, etc
+    email_type = request.args.get("type", "")
+    recipient = request.args.get("recipient", "")
+    status = request.args.get("status", "")
+    limit = int(request.args.get("limit", 50))
+    offset = int(request.args.get("offset", 0))
+    
+    query = EmailLog.query
+    
+    if email_type:
+        query = query.filter_by(email_type=email_type)
+    if recipient:
+        query = query.filter(EmailLog.recipient.ilike(f"%{recipient}%"))
+    if status:
+        query = query.filter_by(status=status)
+    
+    total = query.count()
+    logs = query.order_by(EmailLog.sent_at.desc()).limit(limit).offset(offset).all()
+    
+    return jsonify({
+        "status": "success",
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "logs": [log.to_dict() for log in logs]
+    })
+
+
+@api_bp.route("/admin/email-logs/<int:log_id>", methods=["GET", "OPTIONS"])
+def api_email_log_detail(log_id):
+    """GET /api/admin/email-logs/:id - View email log detail dengan HTML content"""
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    
+    user = _get_user_from_request()
+    if not user or not user.is_admin:
+        return jsonify({"error": "Akses ditolak: Hanya admin"}), 403
+    
+    log = EmailLog.query.get(log_id)
+    if not log:
+        return jsonify({"error": "Email log tidak ditemukan"}), 404
+    
+    return jsonify({
+        "status": "success",
+        "log": log.to_dict(include_html=True)
+    })
+
 
 def register_routes(app):
     app.register_blueprint(api_bp)

@@ -176,19 +176,20 @@ class PesananItem(db.Model):
 
 
 class EmailLog(db.Model):
-    """Log untuk tracking email yang dikirim"""
+    """Log untuk tracking email yang dikirim ke database"""
     __tablename__ = "email_log"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     recipient = db.Column(db.String(255), nullable=False, index=True)
     subject = db.Column(db.String(255), nullable=False)
     email_type = db.Column(db.String(50), nullable=False)  # 'otp', 'invoice', 'status', 'security'
+    html_content = db.Column(db.Text)  # Menyimpan HTML email content
     status = db.Column(db.String(20), default="sent")  # 'sent', 'failed'
     error_message = db.Column(db.Text)
     sent_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    def to_dict(self):
-        return {
+    def to_dict(self, include_html=False):
+        data = {
             "id": self.id,
             "recipient": self.recipient,
             "subject": self.subject,
@@ -196,3 +197,6 @@ class EmailLog(db.Model):
             "status": self.status,
             "sent_at": self.sent_at.isoformat() if self.sent_at else None,
         }
+        if include_html:
+            data["html_content"] = self.html_content
+        return data
