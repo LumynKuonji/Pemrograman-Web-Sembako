@@ -1,3 +1,8 @@
+"""
+Mail Service untuk Toko Sembako AI
+Satu-satunya service pengirim email — menggunakan smtplib langsung.
+Semua modul lain harus mengimpor dari sini.
+"""
 import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -5,8 +10,12 @@ from email.mime.text import MIMEText
 from pathlib import Path
 from datetime import datetime
 from BackEnd.Database.database import EmailLog, db
+from BackEnd.logger import get_logger
+
+log = get_logger("email")
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
+
 
 def _parse_env_file(path: Path) -> dict:
     data = {}
@@ -20,26 +29,49 @@ def _parse_env_file(path: Path) -> dict:
         data[key.strip()] = value.strip().strip('"').strip("'")
     return data
 
+
 def get_mail_config():
+    """
+    Membaca konfigurasi email dari config_mail.env (prioritas)
+    lalu fallback ke environment variables (.env root).
+    """
     file_cfg = _parse_env_file(BACKEND_ROOT / "config_mail.env")
-    
-    provider = os.environ.get("MAIL_PROVIDER") or file_cfg.get("MAIL_PROVIDER") or "console"
-    smtp_server = os.environ.get("MAIL_SMTP_SERVER") or os.environ.get("MAIL_SERVER") or file_cfg.get("MAIL_SMTP_SERVER") or ""
-    smtp_port = os.environ.get("MAIL_SMTP_PORT") or os.environ.get("MAIL_PORT") or file_cfg.get("MAIL_SMTP_PORT") or "587"
-    use_tls = os.environ.get("MAIL_USE_TLS") or file_cfg.get("MAIL_USE_TLS") or "True"
-    username = os.environ.get("MAIL_USERNAME") or file_cfg.get("MAIL_USERNAME") or ""
-    password = os.environ.get("MAIL_PASSWORD") or file_cfg.get("MAIL_PASSWORD") or ""
-    
-    # Strip spaces from password if it is a Gmail app password
+
+    provider = file_cfg.get("MAIL_PROVIDER") or os.environ.get("MAIL_PROVIDER") or "console"
+    smtp_server = (
+        file_cfg.get("MAIL_SMTP_SERVER")
+        or file_cfg.get("MAIL_SERVER")
+        or os.environ.get("MAIL_SMTP_SERVER")
+        or os.environ.get("MAIL_SERVER")
+        or ""
+    )
+    smtp_port = (
+        file_cfg.get("MAIL_SMTP_PORT")
+        or file_cfg.get("MAIL_PORT")
+        or os.environ.get("MAIL_SMTP_PORT")
+        or os.environ.get("MAIL_PORT")
+        or "587"
+    )
+    use_tls = file_cfg.get("MAIL_USE_TLS") or os.environ.get("MAIL_USE_TLS") or "True"
+    username = file_cfg.get("MAIL_USERNAME") or os.environ.get("MAIL_USERNAME") or ""
+    password = file_cfg.get("MAIL_PASSWORD") or os.environ.get("MAIL_PASSWORD") or ""
+
+    # Strip spaces from password (Gmail app passwords are displayed with spaces)
     if password:
         password = password.replace(" ", "")
-        
-    default_sender = os.environ.get("MAIL_DEFAULT_SENDER") or file_cfg.get("MAIL_DEFAULT_SENDER") or "Toko Sembako <noreply@tokosembako.com>"
-    
-    # If SMTP settings are fully filled, default to smtp provider
+
+    default_sender = (
+        file_cfg.get("MAIL_DEFAULT_SENDER")
+        or os.environ.get("MAIL_DEFAULT_SENDER")
+        or f"Toko Sembako <{username}>"
+        if username
+        else "Toko Sembako <noreply@tokosembako.com>"
+    )
+
+    # Auto-detect provider if smtp settings are present
     if provider == "console" and smtp_server and username and password:
         provider = "smtp"
-        
+
     return {
         "provider": provider,
         "smtp_server": smtp_server,
@@ -47,85 +79,139 @@ def get_mail_config():
         "use_tls": str(use_tls).lower() in ("true", "1", "yes"),
         "username": username,
         "password": password,
-        "default_sender": default_sender
+        "default_sender": default_sender,
     }
+
+
+def log_startup_config():
+    """Log konfigurasi email saat startup untuk debugging."""
+    config = get_mail_config()
+    log.info("=" * 50)
+    log.info("KONFIGURASI EMAIL")
+    log.info(f"  Provider    : {config['provider']}")
+    log.info(f"  SMTP Server : {config['smtp_server']}")
+    log.info(f"  SMTP Port   : {config['smtp_port']}")
+    log.info(f"  TLS         : {config['use_tls']}")
+    log.info(f"  Username    : {config['username']}")
+    log.info(f"  Password    : {'***' + config['password'][-4:] if len(config['password']) >= 4 else '(not set)'}")
+    log.info(f"  Sender      : {config['default_sender']}")
+
+    mail_env = BACKEND_ROOT / "config_mail.env"
+    if mail_env.exists():
+        log.info(f"  Config File : {mail_env} [DITEMUKAN]")
+    else:
+        log.warning(f"  Config File : {mail_env} [TIDAK ADA]")
+
+    if config["provider"] == "console":
+        log.warning("  MODE: Console — email TIDAK dikirim, hanya di-log ke database")
+    elif not config["smtp_server"] or not config["username"] or not config["password"]:
+        log.warning("  MODE: Konfigurasi SMTP belum lengkap — email akan di-log saja")
+    else:
+        log.info("  MODE: SMTP aktif — email akan dikirim ke Gmail")
+    log.info("=" * 50)
+
 
 def log_email_to_db(to_email, subject, html_content, email_type, status, error_message=None):
     """Log email ke database"""
     try:
-        log = EmailLog(
+        entry = EmailLog(
             recipient=to_email,
             subject=subject,
             html_content=html_content,
             email_type=email_type,
             status=status,
-            error_message=error_message
+            error_message=error_message,
         )
-        db.session.add(log)
+        db.session.add(entry)
         db.session.commit()
-        print(f"[Mail Log] Email log tersimpan untuk {to_email}")
     except Exception as e:
-        print(f"[Mail Log Error] Gagal menyimpan log ke database: {e}")
+        log.error(f"Gagal menyimpan email log ke database: {e}")
+
 
 def send_email(to_email, subject, html_content, email_type="general"):
     """
-    Mengirim email via SMTP atau log ke database jika provider console
-    
+    Mengirim email via SMTP atau log ke database jika provider console.
+
     Args:
         to_email: Email penerima
         subject: Subject email
         html_content: Konten HTML email
         email_type: Tipe email ('otp', 'invoice', 'status', 'security')
-    
+
     Returns:
         tuple: (success: bool, error_message: str or None)
     """
     config = get_mail_config()
-    
-    # Redirection untuk development (jika diset)
+
+    # Redirection untuk development
     redirect_to = os.environ.get("MAIL_REDIRECT_TO")
     original_recipient = to_email
     if redirect_to and redirect_to.strip():
         to_email = redirect_to.strip()
         subject = f"[DEV REDIRECT to {original_recipient}] {subject}"
-        
+        log.info(f"Email redirect aktif: {original_recipient} → {to_email}")
+
     if config["provider"] == "console" or not config["smtp_server"] or not config["username"]:
-        # Log ke database tanpa mengirim SMTP
         log_email_to_db(original_recipient, subject, html_content, email_type, status="logged")
-        print(f"[Mail Console] Email disimulasikan ke {original_recipient}. Log tersimpan di database.")
+        log.info(f"[CONSOLE MODE] Email disimulasikan ke {original_recipient} — subject: '{subject}'")
         return True, None
-        
+
     try:
-        # Create SMTP session
+        log.info(f"Mengirim email ke {to_email} — subject: '{subject}' — type: {email_type}")
+
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = config["default_sender"]
         msg["To"] = to_email
-        
+
         part = MIMEText(html_content, "html")
         msg.attach(part)
-        
-        server = smtplib.SMTP(config["smtp_server"], config["smtp_port"])
+
+        log.debug(f"Connecting ke SMTP {config['smtp_server']}:{config['smtp_port']} (TLS={config['use_tls']})")
+        server = smtplib.SMTP(config["smtp_server"], config["smtp_port"], timeout=15)
         server.ehlo()
         if config["use_tls"]:
             server.starttls()
             server.ehlo()
-            
+
+        log.debug(f"Login SMTP sebagai {config['username']}")
         server.login(config["username"], config["password"])
         server.sendmail(config["default_sender"], to_email, msg.as_string())
-        server.close()
-        
-        # Log sukses ke database
-        log_email_to_db(to_email, subject, html_content, email_type, status="sent")
-        print(f"[Mail SMTP] Email berhasil dikirim ke {to_email}. Subjek: '{subject}'")
-        return True, None
-    except Exception as e:
-        # Log error ke database
-        log_email_to_db(to_email, subject, html_content, email_type, status="failed", error_message=str(e))
-        print(f"[Mail SMTP Error] Gagal mengirim email ke {to_email}: {e}")
-        return False, str(e)
+        server.quit()
 
+        log_email_to_db(to_email, subject, html_content, email_type, status="sent")
+        log.info(f"✅ Email BERHASIL dikirim ke {to_email}")
+        return True, None
+
+    except smtplib.SMTPAuthenticationError as e:
+        error_msg = f"SMTP Authentication gagal: {e}. Pastikan MAIL_USERNAME dan MAIL_PASSWORD (App Password) di config_mail.env sudah benar."
+        log_email_to_db(to_email, subject, html_content, email_type, status="failed", error_message=error_msg)
+        log.error(f"❌ {error_msg}")
+        return False, error_msg
+
+    except smtplib.SMTPConnectError as e:
+        error_msg = f"Gagal connect ke SMTP server {config['smtp_server']}:{config['smtp_port']}: {e}"
+        log_email_to_db(to_email, subject, html_content, email_type, status="failed", error_message=error_msg)
+        log.error(f"❌ {error_msg}")
+        return False, error_msg
+
+    except smtplib.SMTPException as e:
+        error_msg = f"SMTP error: {e}"
+        log_email_to_db(to_email, subject, html_content, email_type, status="failed", error_message=error_msg)
+        log.error(f"❌ {error_msg}")
+        return False, error_msg
+
+    except Exception as e:
+        error_msg = f"Gagal mengirim email: {type(e).__name__}: {e}"
+        log_email_to_db(to_email, subject, html_content, email_type, status="failed", error_message=error_msg)
+        log.error(f"❌ {error_msg}")
+        return False, error_msg
+
+
+# ============================================
 # HTML Templates
+# ============================================
+
 BASE_EMAIL_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -208,7 +294,6 @@ BASE_EMAIL_TEMPLATE = """
             background-color: #e2e8f0;
             margin: 20px 0;
         }}
-        /* Receipt Styles */
         .receipt-table {{
             width: 100%;
             border-collapse: collapse;
@@ -276,39 +361,40 @@ BASE_EMAIL_TEMPLATE = """
 </html>
 """
 
+
 def generate_otp_email(nama, otp, otp_type="register"):
     if otp_type == "register":
         title = "Verifikasi Akun Baru Anda"
-        intro = f"Halo <strong>{nama}</strong>,<br>Terima kasih telah mendaftar di Toko Sembako! Silakan gunakan kode OTP di bawah ini untuk memverifikasi akun Anda:"
+        intro = f'Halo <strong>{nama}</strong>,<br>Terima kasih telah mendaftar di Toko Sembako! Silakan gunakan kode OTP di bawah ini untuk memverifikasi akun Anda:'
         note = "Kode ini berlaku selama 10 menit. Jangan membagikan kode ini kepada siapa pun."
     elif otp_type == "login":
         title = "Kode OTP Masuk Akun"
-        intro = f"Halo <strong>{nama}</strong>,<br>Kami menerima permintaan masuk menggunakan OTP ke akun Anda. Silakan masukkan kode OTP di bawah ini untuk melanjutkan:"
+        intro = f'Halo <strong>{nama}</strong>,<br>Kami menerima permintaan masuk menggunakan OTP ke akun Anda. Silakan masukkan kode OTP di bawah ini untuk melanjutkan:'
         note = "Kode ini berlaku selama 5 menit. Jika Anda tidak meminta masuk, abaikan saja email ini."
-    else: # reset
+    else:  # reset / forgot_password
         title = "Atur Ulang Kata Sandi"
-        intro = f"Halo <strong>{nama}</strong>,<br>Kami menerima permintaan untuk mengatur ulang kata sandi akun Anda. Gunakan kode verifikasi berikut untuk melakukan reset:"
+        intro = f'Halo <strong>{nama}</strong>,<br>Kami menerima permintaan untuk mengatur ulang kata sandi akun Anda. Gunakan kode verifikasi berikut untuk melakukan reset:'
         note = "Kode ini berlaku selama 10 menit. Jika Anda tidak meminta reset kata sandi, abaikan email ini."
 
     body = f"""
     <p style="font-size: 16px;">{intro}</p>
-    
+
     <div class="otp-box">
         <p style="margin: 0 0 10px 0; color: #718096; font-size: 14px; font-weight: 600; text-transform: uppercase;">Kode OTP Verifikasi</p>
         <h2 class="otp-code">{otp}</h2>
     </div>
-    
+
     <p style="font-size: 14px; color: #718096; text-align: center;">{note}</p>
     """
-    
+
     return BASE_EMAIL_TEMPLATE.replace("{{title}}", title).replace("{{body}}", body)
+
 
 def generate_receipt_email(nama, order_code, items, subtotal, ongkir, total, payment_method, address_details):
     title = f"Struk Pembelian {order_code}"
-    
+
     items_rows = ""
     for item in items:
-        # format values
         price_fmt = f"Rp {item['harga']:,}".replace(",", ".")
         sub_fmt = f"Rp {item['harga'] * item['qty']:,}".replace(",", ".")
         items_rows += f"""
@@ -320,22 +406,22 @@ def generate_receipt_email(nama, order_code, items, subtotal, ongkir, total, pay
             <td style="text-align: right; vertical-align: bottom;">{sub_fmt}</td>
         </tr>
         """
-        
+
     subtotal_fmt = f"Rp {subtotal:,}".replace(",", ".")
     ongkir_fmt = f"Rp {ongkir:,}".replace(",", ".")
     total_fmt = f"Rp {total:,}".replace(",", ".")
-    
+
     date_str = datetime.now().strftime("%d %B %Y, %H:%M WIB")
-    
+
     body = f"""
     <div style="text-align: center; margin-bottom: 25px;">
         <span class="badge badge-success">Pesanan Berhasil</span>
         <h2 style="margin: 10px 0 5px 0; font-size: 20px;">Terima Kasih atas Pembelian Anda!</h2>
         <p style="color: #718096; margin: 0; font-size: 14px;">Detail pesanan dan struk pembayaran Anda tercantum di bawah ini.</p>
     </div>
-    
+
     <div class="divider"></div>
-    
+
     <table style="width: 100%; font-size: 14px; margin-bottom: 20px; line-height: 1.6;">
         <tr>
             <td style="width: 50%; vertical-align: top;">
@@ -352,9 +438,9 @@ def generate_receipt_email(nama, order_code, items, subtotal, ongkir, total, pay
             </td>
         </tr>
     </table>
-    
+
     <h3 style="font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 10px;">Daftar Belanja</h3>
-    
+
     <table class="receipt-table">
         <thead>
             <tr>
@@ -366,7 +452,7 @@ def generate_receipt_email(nama, order_code, items, subtotal, ongkir, total, pay
             {items_rows}
         </tbody>
     </table>
-    
+
     <div class="receipt-summary">
         <div class="summary-row">
             <span>Subtotal</span>
@@ -381,7 +467,7 @@ def generate_receipt_email(nama, order_code, items, subtotal, ongkir, total, pay
             <span>{total_fmt}</span>
         </div>
     </div>
-    
+
     <div style="margin-top: 30px; text-align: center; border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; background-color: #fafafa;">
         <span style="color: #4a5568; font-size: 12px; font-weight: bold;">STRUK RESMI PEMBELIAN</span><br>
         <span style="color: #a0aec0; font-size: 10px;">Simpan email ini sebagai bukti transaksi yang sah.</span>
@@ -390,5 +476,289 @@ def generate_receipt_email(nama, order_code, items, subtotal, ongkir, total, pay
         </div>
     </div>
     """
-    
+
     return BASE_EMAIL_TEMPLATE.replace("{{title}}", title).replace("{{body}}", body)
+
+
+def send_otp_email(recipient, otp_code, user_name, otp_type="register"):
+    """Kirim email OTP (wrapper untuk kompatibilitas dengan email_service.py)"""
+    html_content = generate_otp_email(user_name, otp_code, otp_type)
+
+    subjects = {
+        "register": "🔐 Verifikasi Email Anda - Toko Sembako",
+        "login": "🔐 Kode OTP Login - Toko Sembako",
+        "reset": "🔐 Reset Password - Toko Sembako",
+        "forgot_password": "🔐 Reset Password - Toko Sembako",
+    }
+    subject = subjects.get(otp_type, "🔐 OTP - Toko Sembako")
+
+    return send_email(recipient, subject, html_content, email_type="otp")
+
+
+def send_invoice_email(recipient, user_name, invoice_data):
+    """Kirim email invoice setelah checkout"""
+    from flask import render_template_string
+
+    subject = f'📧 Invoice #{invoice_data["invoice_number"]} - Toko Sembako'
+
+    html_body = render_template_string(
+        INVOICE_EMAIL_TEMPLATE_FLASK,
+        user_name=user_name,
+        invoice_number=invoice_data["invoice_number"],
+        order_date=invoice_data["order_date"],
+        items=invoice_data["items"],
+        subtotal=invoice_data["subtotal"],
+        ongkir=invoice_data["ongkir"],
+        total=invoice_data["total"],
+        payment_method=invoice_data["payment_method"],
+        alamat_lengkap=invoice_data.get("alamat_lengkap", "-"),
+        kecamatan=invoice_data.get("kecamatan", "-"),
+        kota=invoice_data.get("kota", "-"),
+        kode_pos=invoice_data.get("kode_pos", "-"),
+        status=invoice_data.get("status", "Pesanan Diterima"),
+    )
+
+    return send_email(recipient, subject, html_body, email_type="invoice")
+
+
+def send_order_status_email(recipient, user_name, invoice_number, old_status, new_status):
+    """Kirim email notifikasi perubahan status pesanan"""
+    from flask import render_template_string
+
+    status_messages = {
+        "Pesanan Diterima": "✅ Pesanan Anda telah kami terima dan sedang kami proses.",
+        "Sedang Diproses": "📦 Pesanan Anda sedang kami siapkan dengan teliti.",
+        "Sedang Dikirim": "🚚 Pesanan Anda sedang dalam perjalanan menuju alamat Anda.",
+        "Pesanan Selesai": "🎉 Pesanan Anda telah selesai. Terima kasih telah berbelanja!",
+        "Pesanan Dibatalkan": "❌ Pesanan Anda telah dibatalkan.",
+    }
+
+    subject = f"📦 Update Status Pesanan #{invoice_number} - Toko Sembako"
+    status_message = status_messages.get(new_status, f"Status pesanan Anda telah diubah menjadi: {new_status}")
+
+    html_body = render_template_string(
+        ORDER_STATUS_EMAIL_TEMPLATE_FLASK,
+        user_name=user_name,
+        invoice_number=invoice_number,
+        new_status=new_status,
+        status_message=status_message,
+    )
+
+    return send_email(recipient, subject, html_body, email_type="status")
+
+
+def send_security_email(recipient, user_name, security_type, details=""):
+    """Kirim email notifikasi keamanan"""
+    if security_type == "password_changed":
+        subject = "🔒 Password Anda Telah Diubah - Toko Sembako"
+        title = "Password Berhasil Diubah"
+        message = f'Halo {user_name}, password akun Anda telah berhasil diubah pada {datetime.now().strftime("%d %B %Y, %H:%M")} WIB.'
+        action = "Jika Anda tidak melakukan perubahan ini, segera hubungi kami atau reset password Anda."
+    elif security_type == "email_changed":
+        subject = "📧 Email Anda Telah Diubah - Toko Sembako"
+        title = "Email Berhasil Diubah"
+        message = f"Halo {user_name}, email akun Anda telah berhasil diubah."
+        action = "Jika Anda tidak melakukan perubahan ini, segera hubungi kami."
+    elif security_type == "account_verified":
+        subject = "✅ Akun Anda Telah Terverifikasi - Toko Sembako"
+        title = "Selamat Datang di Toko Sembako!"
+        message = f"Halo {user_name}, akun Anda telah berhasil diverifikasi. Selamat berbelanja!"
+        action = "Anda sekarang dapat menikmati semua fitur Toko Sembako."
+    else:  # new_device_login
+        subject = "🔔 Login dari Perangkat Baru - Toko Sembako"
+        title = "Aktivitas Login Terdeteksi"
+        message = f'Halo {user_name}, kami mendeteksi login ke akun Anda dari perangkat baru pada {datetime.now().strftime("%d %B %Y, %H:%M")} WIB.'
+        action = "Jika ini bukan Anda, segera ubah password Anda."
+
+    body = f"""
+    <h2 style="margin: 0 0 20px 0; color: #333333;">{title}</h2>
+    <p style="font-size: 16px;">{message}</p>
+    <div style="background-color: #e7f3ff; border-left: 4px solid #2196F3; padding: 15px; margin: 30px 0; border-radius: 4px;">
+        <p style="margin: 0; color: #014361; font-size: 14px;">ℹ️ {action}</p>
+    </div>
+    {"<p style='color: #999999; font-size: 14px;'>" + details + "</p>" if details else ""}
+    """
+
+    html_body = BASE_EMAIL_TEMPLATE.replace("{{title}}", title).replace("{{body}}", body)
+    return send_email(recipient, subject, html_body, email_type="security")
+
+
+# ============================================
+# Flask-Jinja2 EMAIL TEMPLATES (for invoice/status)
+# These use Jinja2 syntax {{ var }} for render_template_string
+# ============================================
+
+INVOICE_EMAIL_TEMPLATE_FLASK = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7fa;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f7fa; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="650" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden;">
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px;">
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td>
+                                        <h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 700;">🛒 Toko Sembako</h1>
+                                        <p style="margin: 5px 0 0 0; color: #e0e7ff; font-size: 14px;">Belanja Mudah, Harga Terjangkau</p>
+                                    </td>
+                                    <td align="right">
+                                        <div style="background-color: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 8px;">
+                                            <p style="margin: 0; color: #ffffff; font-size: 12px; text-transform: uppercase;">Invoice</p>
+                                            <p style="margin: 5px 0 0 0; color: #ffffff; font-size: 18px; font-weight: 700;">#{{ invoice_number }}</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 30px;">
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td width="50%">
+                                        <p style="margin: 0 0 5px 0; color: #999999; font-size: 12px; text-transform: uppercase;">Kepada</p>
+                                        <p style="margin: 0; color: #333333; font-size: 18px; font-weight: 600;">{{ user_name }}</p>
+                                    </td>
+                                    <td width="50%" align="right">
+                                        <p style="margin: 0 0 5px 0; color: #999999; font-size: 12px; text-transform: uppercase;">Tanggal</p>
+                                        <p style="margin: 0; color: #333333; font-size: 16px;">{{ order_date }}</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0 30px 30px 30px;">
+                            <table width="100%" cellpadding="0" cellspacing="0" style="border: 1px solid #e9ecef; border-radius: 8px; overflow: hidden;">
+                                <thead>
+                                    <tr style="background-color: #f8f9fa;">
+                                        <th style="padding: 15px; text-align: left; color: #666666; font-size: 12px; text-transform: uppercase; font-weight: 600; border-bottom: 2px solid #e9ecef;">Produk</th>
+                                        <th style="padding: 15px; text-align: center; color: #666666; font-size: 12px; text-transform: uppercase; font-weight: 600; border-bottom: 2px solid #e9ecef;">Qty</th>
+                                        <th style="padding: 15px; text-align: right; color: #666666; font-size: 12px; text-transform: uppercase; font-weight: 600; border-bottom: 2px solid #e9ecef;">Harga</th>
+                                        <th style="padding: 15px; text-align: right; color: #666666; font-size: 12px; text-transform: uppercase; font-weight: 600; border-bottom: 2px solid #e9ecef;">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in items %}
+                                    <tr>
+                                        <td style="padding: 15px; color: #333333; font-size: 14px; border-bottom: 1px solid #f1f3f5;">{{ item.nama }}</td>
+                                        <td style="padding: 15px; text-align: center; color: #666666; font-size: 14px; border-bottom: 1px solid #f1f3f5;">{{ item.qty }}</td>
+                                        <td style="padding: 15px; text-align: right; color: #666666; font-size: 14px; border-bottom: 1px solid #f1f3f5;">Rp {{ "{:,}".format(item.harga).replace(',', '.') }}</td>
+                                        <td style="padding: 15px; text-align: right; color: #333333; font-size: 14px; font-weight: 600; border-bottom: 1px solid #f1f3f5;">Rp {{ "{:,}".format(item.subtotal).replace(',', '.') }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0 30px 30px 30px;">
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td width="60%"></td>
+                                    <td width="40%">
+                                        <table width="100%" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="padding: 10px 0; color: #666666; font-size: 14px;">Subtotal</td>
+                                                <td style="padding: 10px 0; text-align: right; color: #333333; font-size: 14px;">Rp {{ "{:,}".format(subtotal).replace(',', '.') }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 10px 0; color: #666666; font-size: 14px;">Ongkir</td>
+                                                <td style="padding: 10px 0; text-align: right; color: #333333; font-size: 14px;">Rp {{ "{:,}".format(ongkir).replace(',', '.') }}</td>
+                                            </tr>
+                                            <tr style="border-top: 2px solid #e9ecef;">
+                                                <td style="padding: 15px 0 0 0; color: #333333; font-size: 16px; font-weight: 700;">Total</td>
+                                                <td style="padding: 15px 0 0 0; text-align: right; color: #667eea; font-size: 20px; font-weight: 700;">Rp {{ "{:,}".format(total).replace(',', '.') }}</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0 30px 30px 30px;">
+                            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-radius: 8px; padding: 20px;">
+                                <tr>
+                                    <td width="50%" style="padding-right: 15px;">
+                                        <p style="margin: 0 0 10px 0; color: #999999; font-size: 12px; text-transform: uppercase; font-weight: 600;">Alamat Pengiriman</p>
+                                        <p style="margin: 0; color: #333333; font-size: 14px; line-height: 1.6;">
+                                            {{ alamat_lengkap }}<br>
+                                            {{ kecamatan }}, {{ kota }}<br>
+                                            {{ kode_pos }}
+                                        </p>
+                                    </td>
+                                    <td width="50%" style="padding-left: 15px; border-left: 1px solid #e9ecef;">
+                                        <p style="margin: 0 0 10px 0; color: #999999; font-size: 12px; text-transform: uppercase; font-weight: 600;">Metode Pembayaran</p>
+                                        <p style="margin: 0 0 15px 0; color: #333333; font-size: 14px;">{{ payment_method }}</p>
+                                        <p style="margin: 0 0 10px 0; color: #999999; font-size: 12px; text-transform: uppercase; font-weight: 600;">Status Pesanan</p>
+                                        <span style="display: inline-block; background-color: #d4edda; color: #155724; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">{{ status }}</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e9ecef;">
+                            <p style="margin: 0 0 10px 0; color: #666666; font-size: 14px;">Terima kasih telah berbelanja di Toko Sembako!</p>
+                            <p style="margin: 0; color: #999999; font-size: 12px;">&copy; 2026 Toko Sembako. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+"""
+
+ORDER_STATUS_EMAIL_TEMPLATE_FLASK = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Status Pesanan</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7fa;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f7fa; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden;">
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">🛒 Toko Sembako</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 40px 30px; text-align: center;">
+                            <h2 style="margin: 0 0 15px 0; color: #333333; font-size: 24px; font-weight: 600;">Update Status Pesanan</h2>
+                            <p style="margin: 0 0 10px 0; color: #999999; font-size: 14px;">Invoice #{{ invoice_number }}</p>
+                            <div style="background-color: #f8f9fa; border-radius: 8px; padding: 25px; margin: 30px 0;">
+                                <p style="margin: 0 0 15px 0; color: #666666; font-size: 14px;">Status Pesanan Anda:</p>
+                                <p style="margin: 0; color: #667eea; font-size: 22px; font-weight: 700;">{{ new_status }}</p>
+                            </div>
+                            <p style="margin: 0 0 30px 0; color: #666666; font-size: 16px; line-height: 1.6;">{{ status_message }}</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e9ecef;">
+                            <p style="margin: 0 0 10px 0; color: #666666; font-size: 14px;">Terima kasih telah berbelanja di Toko Sembako</p>
+                            <p style="margin: 0; color: #999999; font-size: 12px;">&copy; 2026 Toko Sembako. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+"""

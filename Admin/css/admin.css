@@ -441,6 +441,9 @@ body {
   overflow: hidden;
   transform: scale(0.9);
   transition: var(--transition);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-overlay.active .modal-container {
@@ -472,8 +475,17 @@ body {
   color: var(--danger);
 }
 
+#productForm {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
 .modal-body {
   padding: 24px;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .form-group {

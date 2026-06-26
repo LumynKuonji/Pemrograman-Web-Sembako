@@ -9,15 +9,16 @@ MAIL_ENV_PATH = BACKEND_ROOT / "config_mail.env"
 
 if ENV_PATH.exists():
     load_dotenv(ENV_PATH)
-    print(f"[Email Config] Root .env dimuat dari {ENV_PATH}")
+    print(f"[Config] Root .env dimuat dari {ENV_PATH}")
     if MAIL_ENV_PATH.exists():
-        load_dotenv(MAIL_ENV_PATH, override=False)
-        print(f"[Email Config] Konfigurasi email tambahan dimuat dari {MAIL_ENV_PATH}")
+        # override=True agar konfigurasi mail di config_mail.env menimpa .env root
+        load_dotenv(MAIL_ENV_PATH, override=True)
+        print(f"[Config] Konfigurasi email dimuat dari {MAIL_ENV_PATH} (override=True)")
 elif MAIL_ENV_PATH.exists():
     load_dotenv(MAIL_ENV_PATH)
-    print(f"[Email Config] Email config dimuat dari {MAIL_ENV_PATH}")
+    print(f"[Config] Email config dimuat dari {MAIL_ENV_PATH}")
 else:
-    print(f"[Email Config Warning] File .env dan config_mail.env tidak ditemukan")
+    print(f"[Config Warning] File .env dan config_mail.env tidak ditemukan")
     print("   Buat file BackEnd/config_mail.env untuk mengaktifkan fitur email")
 
 from flask import Flask
@@ -25,7 +26,10 @@ from BackEnd.Database.database import Produk, User, TokoSetting, db
 from BackEnd.Model.products import PRODUCT_SEEDS
 from BackEnd.View.routes import register_routes
 from BackEnd.Services.email_service import init_mail
+from BackEnd.logger import get_logger
 from werkzeug.security import generate_password_hash
+
+log = get_logger("app")
 
 
 def create_app():
@@ -40,14 +44,62 @@ def create_app():
 
     db.init_app(app)
     
-    # Inisialisasi Flask-Mail
+    # Inisialisasi email service (logs config status)
     init_mail(app)
     
     register_routes(app)
 
     with app.app_context():
         db.create_all()
+        
+        # Migrasi SQLite: pastikan kolom html_content ada di tabel email_log
+        import sqlite3
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(email_log)")
+            columns = [info[1] for info in cursor.fetchall()]
+            if columns and "html_content" not in columns:
+                cursor.execute("ALTER TABLE email_log ADD COLUMN html_content TEXT")
+                conn.commit()
+                log.info("Migrasi SQLite: Kolom html_content berhasil ditambahkan ke tabel email_log")
+            conn.close()
+        except Exception as e:
+            log.warning(f"Gagal memeriksa/migrasi kolom html_content di SQLite: {e}")
+
         sync_seed_products()
+        
+        # Migrasi produk: Konversi gambar URL ke Binary jika ada
+        try:
+            all_products = Produk.query.all()
+            migrated = False
+            for p in all_products:
+                if p.img:
+                    is_url = False
+                    url_str = ""
+                    if isinstance(p.img, str) and p.img.startswith("http"):
+                        is_url = True
+                        url_str = p.img
+                    elif isinstance(p.img, bytes):
+                        try:
+                            decoded = p.img.decode('utf-8')
+                            if decoded.startswith("http"):
+                                is_url = True
+                                url_str = decoded
+                        except Exception:
+                            pass
+                    
+                    if is_url:
+                        log.info(f"Mengonversi gambar produk ID {p.id} ({p.nama}) dari URL ke Binary...")
+                        img_data = get_image_binary(url_str)
+                        p.img = img_data
+                        migrated = True
+            if migrated:
+                db.session.commit()
+                log.info("Semua gambar produk berhasil dimigrasi ke format Binary (BLOB)!")
+        except Exception as e:
+            log.warning(f"Gagal memigrasi gambar produk ke binary: {e}")
+
         seed_demo_user()
         seed_settings()
         
@@ -95,15 +147,34 @@ def seed_demo_user():
     db.session.commit()
 
 
+def get_image_binary(url):
+    placeholder = b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x01D\x00;'
+    if not url or not url.startswith("http"):
+        return placeholder
+    try:
+        import urllib.request
+        log.info(f"Downloading seed image: {url}")
+        req = urllib.request.Request(
+            url, 
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        )
+        with urllib.request.urlopen(req, timeout=3) as response:
+            return response.read()
+    except Exception as e:
+        log.warning(f"Gagal mendownload gambar seed {url}: {e}")
+        return placeholder
+
+
 def sync_seed_products():
     if Produk.query.count() == 0:
         for data in PRODUCT_SEEDS:
+            img_data = get_image_binary(data["img"])
             produk = Produk(
                 id=data["id"],
                 nama=data["nama"],
                 harga=data["harga"],
                 kategori=data["kategori"],
-                img=data["img"],
+                img=img_data,
                 desc=data["desc"]
             )
             db.session.add(produk)

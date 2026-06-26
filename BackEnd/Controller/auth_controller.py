@@ -8,7 +8,10 @@ from datetime import datetime, timedelta
 from werkzeug.security import check_password_hash, generate_password_hash
 from BackEnd.Database.database import User, UserSession, db
 from BackEnd.Services import mail_service
-from BackEnd.Services.email_service import send_security_email
+from BackEnd.Services.mail_service import send_security_email
+from BackEnd.logger import get_logger
+
+log = get_logger("auth")
 
 def generate_digit_otp(length=6):
     return "".join(random.choices("0123456789", k=length))
@@ -23,9 +26,12 @@ def register_user(nama, email, password, telepon=None, foto=None):
         - Jika gagal: None, error_message
     """
     email = email.strip().lower()
+    log.info(f"Register request untuk email: {email}")
+    
     existing_user = User.query.filter_by(email=email).first()
     if existing_user:
         if existing_user.is_verified:
+            log.warning(f"Register gagal: email {email} sudah terdaftar dan terverifikasi")
             return None, "Email sudah terdaftar"
 
         if len(password) < 6:
@@ -44,12 +50,17 @@ def register_user(nama, email, password, telepon=None, foto=None):
         existing_user.otp_type = "register"
 
         db.session.commit()
+        log.info(f"Akun unverified {email} diperbarui, OTP baru di-generate")
 
         try:
             email_content = mail_service.generate_otp_email(existing_user.nama, otp, "register")
-            mail_service.send_email(existing_user.email, "Verifikasi Akun Toko Sembako", email_content, email_type="otp")
+            success, err = mail_service.send_email(existing_user.email, "Verifikasi Akun Toko Sembako", email_content, email_type="otp")
+            if not success:
+                log.error(f"Gagal mengirim email verifikasi ulang ke {email}: {err}")
+            else:
+                log.info(f"Email verifikasi ulang berhasil dikirim ke {email}")
         except Exception as e:
-            print(f"Gagal mengirim email verifikasi ulang register: {e}")
+            log.error(f"Exception saat mengirim email verifikasi ulang register: {e}")
 
         return existing_user, None
 
@@ -76,13 +87,18 @@ def register_user(nama, email, password, telepon=None, foto=None):
     db.session.flush()  # Dapatkan ID user sebelum commit
     
     db.session.commit()
+    log.info(f"User baru dibuat: {email} (id={user.id}), menunggu verifikasi OTP")
 
     # Send verification email
     try:
         email_content = mail_service.generate_otp_email(user.nama, otp, "register")
-        mail_service.send_email(user.email, "Verifikasi Akun Toko Sembako", email_content, email_type="otp")
+        success, err = mail_service.send_email(user.email, "Verifikasi Akun Toko Sembako", email_content, email_type="otp")
+        if not success:
+            log.error(f"Gagal mengirim email verifikasi ke {email}: {err}")
+        else:
+            log.info(f"Email verifikasi berhasil dikirim ke {email}")
     except Exception as e:
-        print(f"Gagal mengirim email verifikasi register: {e}")
+        log.error(f"Exception saat mengirim email verifikasi register: {e}")
 
     return user, None
 
@@ -90,15 +106,19 @@ def verify_register_otp(email, code):
     email = email.strip().lower()
     user = User.query.filter_by(email=email).first()
     if not user:
+        log.warning(f"Verify OTP gagal: user {email} tidak ditemukan")
         return False, "User tidak ditemukan"
     
     if user.is_verified:
+        log.info(f"User {email} sudah terverifikasi sebelumnya")
         return True, "Akun sudah terverifikasi sebelumnya"
         
     if not user.otp_code or user.otp_type != "register" or user.otp_code != code:
+        log.warning(f"Verify OTP gagal: kode salah untuk {email}")
         return False, "Kode OTP salah"
         
     if user.otp_expiry and user.otp_expiry < datetime.utcnow():
+        log.warning(f"Verify OTP gagal: kode kedaluwarsa untuk {email}")
         return False, "Kode OTP sudah kedaluwarsa"
         
     user.is_verified = True
@@ -107,21 +127,22 @@ def verify_register_otp(email, code):
     user.otp_type = None
     db.session.commit()
     
+    log.info(f"✅ User {email} berhasil diverifikasi")
     return True, None
 
 def login_user(email, password):
     """
-    Login user - jika email dan password benar, kirim OTP untuk 2FA
+    Login user - jika email dan password benar, buat session token
     
     Returns:
         tuple: (user, token, error_message)
-        - Jika perlu OTP: user, None, "OTP_REQUIRED"
-        - Jika sukses: user, token, None
-        - Jika gagal: None, None, error_message
     """
     email = email.strip().lower()
+    log.info(f"Login request untuk email: {email}")
+    
     user = User.query.filter_by(email=email).first()
     if not user or not check_password_hash(user.password_hash, password):
+        log.warning(f"Login gagal: email/password salah untuk {email}")
         return None, None, "Email atau password salah"
     
     if not user.is_verified:
@@ -132,11 +153,15 @@ def login_user(email, password):
         user.otp_type = "register"
         db.session.commit()
         
+        log.info(f"Login dari akun belum terverifikasi {email}, mengirim OTP verifikasi")
+        
         try:
             email_content = mail_service.generate_otp_email(user.nama, otp, "register")
-            mail_service.send_email(user.email, "Verifikasi Akun Toko Sembako", email_content, email_type="otp")
+            success, err = mail_service.send_email(user.email, "Verifikasi Akun Toko Sembako", email_content, email_type="otp")
+            if not success:
+                log.error(f"Gagal kirim ulang verifikasi ke {email}: {err}")
         except Exception as e:
-            print(f"Gagal kirim ulang verifikasi: {e}")
+            log.error(f"Exception kirim ulang verifikasi: {e}")
             
         return user, None, "Akun belum terverifikasi"
 
@@ -153,12 +178,14 @@ def login_user(email, password):
     db.session.add(session)
     db.session.commit()
     
+    log.info(f"✅ Login berhasil untuk {email}")
     return user, token, None
 
 def request_login_otp(email):
     email = email.strip().lower()
     user = User.query.filter_by(email=email).first()
     if not user:
+        log.warning(f"Request login OTP gagal: email {email} tidak terdaftar")
         return False, "Email tidak terdaftar. Silakan daftar terlebih dahulu."
         
     otp = generate_digit_otp()
@@ -167,11 +194,18 @@ def request_login_otp(email):
     user.otp_type = "login"
     db.session.commit()
     
+    log.info(f"Mengirim OTP login ke {email}")
+    
     try:
         email_content = mail_service.generate_otp_email(user.nama, otp, "login")
-        mail_service.send_email(user.email, "OTP Login Toko Sembako", email_content, email_type="otp")
+        success, err = mail_service.send_email(user.email, "OTP Login Toko Sembako", email_content, email_type="otp")
+        if not success:
+            log.error(f"Gagal mengirim OTP login ke {email}: {err}")
+            return False, f"Gagal mengirim OTP login: {err}"
+        log.info(f"OTP login berhasil dikirim ke {email}")
         return True, None
     except Exception as e:
+        log.error(f"Exception mengirim OTP login: {e}")
         return False, f"Gagal mengirim OTP login: {e}"
 
 def verify_login_otp(email, code):
@@ -200,12 +234,15 @@ def verify_login_otp(email, code):
     )
     db.session.add(session)
     db.session.commit()
+    
+    log.info(f"✅ Login OTP berhasil untuk {email}")
     return user, token, None
 
 def request_reset_password_otp(email):
     email = email.strip().lower()
     user = User.query.filter_by(email=email).first()
     if not user:
+        log.warning(f"Request reset OTP gagal: email {email} tidak terdaftar")
         return False, "Email tidak terdaftar"
         
     otp = generate_digit_otp()
@@ -214,11 +251,17 @@ def request_reset_password_otp(email):
     user.otp_type = "reset"
     db.session.commit()
     
+    log.info(f"Mengirim OTP reset password ke {email}")
+    
     try:
         email_content = mail_service.generate_otp_email(user.nama, otp, "reset")
-        mail_service.send_email(user.email, "Atur Ulang Kata Sandi - Toko Sembako", email_content, email_type="otp")
+        success, err = mail_service.send_email(user.email, "Atur Ulang Kata Sandi - Toko Sembako", email_content, email_type="otp")
+        if not success:
+            log.error(f"Gagal mengirim OTP reset ke {email}: {err}")
+            return False, f"Gagal mengirim OTP reset: {err}"
         return True, None
     except Exception as e:
+        log.error(f"Exception mengirim OTP reset: {e}")
         return False, f"Gagal mengirim OTP reset: {e}"
 
 def reset_password_with_otp(email, code, new_password):
@@ -241,12 +284,15 @@ def reset_password_with_otp(email, code, new_password):
     user.otp_expiry = None
     user.otp_type = None
     db.session.commit()
+    
+    log.info(f"Password berhasil di-reset untuk {email}")
     return True, None
 
 def resend_otp(email, otp_type):
     email = email.strip().lower()
     user = User.query.filter_by(email=email).first()
     if not user:
+        log.warning(f"Resend OTP gagal: email {email} tidak terdaftar")
         return False, "Email tidak terdaftar"
         
     otp = generate_digit_otp()
@@ -254,6 +300,8 @@ def resend_otp(email, otp_type):
     user.otp_expiry = datetime.utcnow() + timedelta(minutes=10 if otp_type != "login" else 5)
     user.otp_type = otp_type
     db.session.commit()
+    
+    log.info(f"Resend OTP ({otp_type}) ke {email}")
     
     subjects = {
         "register": "Verifikasi Akun Toko Sembako",
@@ -264,22 +312,25 @@ def resend_otp(email, otp_type):
     
     try:
         email_content = mail_service.generate_otp_email(user.nama, otp, otp_type)
-        mail_service.send_email(user.email, subjects.get(otp_type, "OTP Toko Sembako"), email_content, email_type="otp")
+        success, err = mail_service.send_email(user.email, subjects.get(otp_type, "OTP Toko Sembako"), email_content, email_type="otp")
+        if not success:
+            log.error(f"Gagal mengirim ulang OTP ke {email}: {err}")
+            return False, f"Gagal mengirim ulang OTP: {err}"
+        log.info(f"OTP baru berhasil dikirim ke {email}")
         return True, None
     except Exception as e:
+        log.error(f"Exception mengirim ulang OTP: {e}")
         return False, f"Gagal mengirim ulang OTP: {e}"
 
 def forgot_password_request(email):
     """
     Request forgot password - kirim OTP ke email
-    
-    Returns:
-        tuple: (success: bool, error_message: str or None)
     """
     email = email.strip().lower()
     user = User.query.filter_by(email=email).first()
     if not user:
         # Jangan beri tahu apakah email terdaftar atau tidak (security)
+        log.info(f"Forgot password request untuk email tidak terdaftar: {email} (tetap return success)")
         return True, None
     
     otp = generate_digit_otp()
@@ -288,21 +339,22 @@ def forgot_password_request(email):
     user.otp_type = "forgot_password"
     db.session.commit()
 
+    log.info(f"Mengirim OTP forgot password ke {email}")
+
     try:
         email_content = mail_service.generate_otp_email(user.nama, otp, "forgot_password")
-        mail_service.send_email(user.email, "Atur Ulang Kata Sandi - Toko Sembako", email_content, email_type="otp")
+        success, err = mail_service.send_email(user.email, "Atur Ulang Kata Sandi - Toko Sembako", email_content, email_type="otp")
+        if not success:
+            log.error(f"Gagal mengirim OTP forgot password ke {email}: {err}")
+            return False, f"Gagal mengirim OTP reset: {err}"
         return True, None
     except Exception as e:
+        log.error(f"Exception mengirim OTP forgot password: {e}")
         return False, f"Gagal mengirim OTP reset: {e}"
 
 
 def verify_forgot_password_otp(email, otp_code):
-    """
-    Verifikasi OTP untuk forgot password
-    
-    Returns:
-        tuple: (success: bool, error_message: str or None)
-    """
+    """Verifikasi OTP untuk forgot password"""
     email = email.strip().lower()
     user = User.query.filter_by(email=email).first()
     if not user:
@@ -318,12 +370,7 @@ def verify_forgot_password_otp(email, otp_code):
 
 
 def reset_password(email, new_password):
-    """
-    Reset password setelah verifikasi OTP
-    
-    Returns:
-        tuple: (success: bool, error_message: str or None)
-    """
+    """Reset password setelah verifikasi OTP"""
     email = email.strip().lower()
     user = User.query.filter_by(email=email).first()
     if not user:
@@ -335,6 +382,8 @@ def reset_password(email, new_password):
     # Update password
     user.password_hash = generate_password_hash(new_password)
     db.session.commit()
+    
+    log.info(f"Password berhasil diubah untuk {email}")
     
     # Kirim email notifikasi password berhasil diubah
     send_security_email(user.email, user.nama, 'password_changed')
@@ -348,6 +397,7 @@ def logout_user(token):
         return False
     session = UserSession.query.filter_by(token=token).first()
     if session:
+        log.info(f"Logout user_id={session.user_id}")
         db.session.delete(session)
         db.session.commit()
     return True
@@ -366,20 +416,39 @@ def get_user_by_token(token):
     return User.query.get(session.user_id)
 
 
+def update_user_profile(user, nama=None, telepon=None, foto=None):
+    """Update profile user"""
+    if nama is not None:
+        user.nama = nama.strip()
+    if telepon is not None:
+        user.telepon = telepon.strip() if telepon else None
+    if foto is not None:
+        user.foto = foto
+    user.updated_at = datetime.utcnow()
+    db.session.commit()
+    log.info(f"Profile diperbarui untuk user_id={user.id}")
+    return user
+
+
+def change_user_password(user, current_password, new_password):
+    """Ganti password user via backend"""
+    if not check_password_hash(user.password_hash, current_password):
+        return False, "Password saat ini salah"
+    if len(new_password) < 6:
+        return False, "Password baru minimal 6 karakter"
+    user.password_hash = generate_password_hash(new_password)
+    db.session.commit()
+    log.info(f"Password berhasil diganti untuk user_id={user.id}")
+    send_security_email(user.email, user.nama, 'password_changed')
+    return True, None
+
+
 def cleanup_unverified_accounts(hours=1):
     """
     Hapus akun yang tidak terverifikasi setelah X jam
-    Gunakan untuk cleanup phantom accounts setelah OTP expired
-    
-    Args:
-        hours: jumlah jam untuk menunggu sebelum hapus (default: 1 jam)
-    
-    Returns:
-        int: Jumlah akun yang dihapus
     """
     cutoff_time = datetime.utcnow() - timedelta(hours=hours)
     
-    # Hapus akun unverified yang dibuat lebih dari X jam yang lalu
     unverified = User.query.filter(
         User.is_verified == False,
         User.created_at < cutoff_time
@@ -388,14 +457,12 @@ def cleanup_unverified_accounts(hours=1):
     count = 0
     for user in unverified:
         try:
-            # Hapus associated sessions
             UserSession.query.filter_by(user_id=user.id).delete()
-            # Hapus user
             db.session.delete(user)
             count += 1
         except Exception as e:
-            print(f"Error menghapus user {user.email}: {e}")
+            log.error(f"Error menghapus user {user.email}: {e}")
     
     db.session.commit()
-    print(f"[Cleanup] Dihapus {count} akun unverified yang lebih dari {hours} jam")
+    log.info(f"Cleanup: Dihapus {count} akun unverified yang lebih dari {hours} jam")
     return count

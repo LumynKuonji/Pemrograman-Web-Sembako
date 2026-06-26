@@ -13,8 +13,12 @@ from BackEnd.Controller import (
     pesanan_controller,
     produk_controller,
 )
-from BackEnd.Database.database import PesananItem, Pesanan, Produk, User, EmailLog, TokoSetting, db
+from BackEnd.Database.database import PesananItem, Pesanan, Produk, User, EmailLog, TokoSetting, ChatHistory, ChatSession, db
 from BackEnd.Services.email_service import send_invoice_email, send_order_status_email
+from BackEnd.logger import get_logger
+import uuid
+
+log = get_logger("api")
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -26,7 +30,13 @@ def _cors_preflight():
 def _get_user_from_request():
     auth = request.headers.get("Authorization", "")
     if auth.startswith("Bearer "):
-        return auth_controller.get_user_by_token(auth[7:].strip())
+        token = auth[7:].strip()
+        user = auth_controller.get_user_by_token(token)
+        if not user:
+            from BackEnd.logger import get_logger
+            log = get_logger("routes")
+            log.warning(f"Token invalid atau kedaluwarsa: {token[:10]}...")
+        return user
     return None
 
 
@@ -201,6 +211,8 @@ def api_resend_otp():
     if err:
         return jsonify({"error": err}), 400
     return jsonify({"status": "success", "message": "Kode OTP baru telah dikirim ke email Anda"})
+
+
 @api_bp.route("/auth/logout", methods=["POST", "OPTIONS"])
 def api_logout():
     """POST /api/auth/logout - Logout user"""
@@ -275,6 +287,46 @@ def api_cleanup_unverified():
         })
     except Exception as e:
         return jsonify({"error": f"Gagal cleanup: {e}"}), 500
+
+
+@api_bp.route("/auth/profile", methods=["PUT", "OPTIONS"])
+def api_update_profile():
+    """PUT /api/auth/profile - Update user profile"""
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    user = _get_user_from_request()
+    if not user:
+        return jsonify({"error": "Belum login"}), 401
+    data = request.json or {}
+    nama = data.get("nama")
+    telepon = data.get("telepon")
+    foto = data.get("foto")
+    if nama is not None and not nama.strip():
+        return jsonify({"error": "Nama tidak boleh kosong"}), 400
+    updated = auth_controller.update_user_profile(user, nama=nama, telepon=telepon, foto=foto)
+    return jsonify({"status": "success", "user": updated.to_dict()})
+
+
+@api_bp.route("/auth/change-password", methods=["PUT", "OPTIONS"])
+def api_change_password():
+    """PUT /api/auth/change-password - Change password via backend"""
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    user = _get_user_from_request()
+    if not user:
+        return jsonify({"error": "Belum login"}), 401
+    data = request.json or {}
+    current = data.get("current_password", "")
+    new_pass = data.get("new_password", "")
+    confirm = data.get("confirm_password", "")
+    if not current or not new_pass:
+        return jsonify({"error": "Password lama dan baru wajib diisi"}), 400
+    if new_pass != confirm:
+        return jsonify({"error": "Konfirmasi password tidak sesuai"}), 400
+    success, err = auth_controller.change_user_password(user, current, new_pass)
+    if err:
+        return jsonify({"error": err}), 400
+    return jsonify({"status": "success", "message": "Password berhasil diperbarui"})
 
 
 # ============================================
@@ -381,13 +433,28 @@ def api_products():
 def api_products_add():
     if request.method == "OPTIONS":
         return _cors_preflight()
-    data = request.json or {}
-    nama = data.get("nama", "").strip()
-    harga = data.get("harga")
-    kategori = data.get("kategori", "").strip()
-    img = data.get("img", "").strip()
-    desc = data.get("desc", "").strip()
-    
+        
+    # Check if request is multipart/form-data
+    if request.content_type and "multipart/form-data" in request.content_type:
+        nama = request.form.get("nama", "").strip()
+        harga = request.form.get("harga")
+        kategori = request.form.get("kategori", "").strip()
+        desc = request.form.get("desc", "").strip()
+        
+        file = request.files.get("img")
+        img_data = file.read() if file else None
+    else:
+        # JSON fallback
+        data = request.json or {}
+        nama = data.get("nama", "").strip()
+        harga = data.get("harga")
+        kategori = data.get("kategori", "").strip()
+        img_url = data.get("img", "").strip()
+        
+        # If a URL is sent via JSON, save it as bytes (text representation)
+        img_data = img_url.encode("utf-8") if img_url else None
+        desc = data.get("desc", "").strip()
+        
     if not nama or not harga or not kategori:
         return jsonify({"error": "Nama, harga, dan kategori produk wajib diisi"}), 400
         
@@ -396,7 +463,7 @@ def api_products_add():
     except ValueError:
         return jsonify({"error": "Harga harus berupa angka"}), 400
         
-    produk = produk_controller.tambah_produk(nama, harga_int, kategori, img or None, desc or None)
+    produk = produk_controller.tambah_produk(nama, harga_int, kategori, img_data, desc or None)
     return jsonify({"status": "success", "message": "Produk berhasil ditambahkan", "product": produk.to_dict()}), 201
 
 
@@ -404,13 +471,31 @@ def api_products_add():
 def api_products_edit(produk_id):
     if request.method == "OPTIONS":
         return _cors_preflight()
-    data = request.json or {}
-    nama = data.get("nama", "").strip()
-    harga = data.get("harga")
-    kategori = data.get("kategori", "").strip()
-    img = data.get("img", "").strip()
-    desc = data.get("desc", "").strip()
-    
+        
+    # Check if request is multipart/form-data
+    if request.content_type and "multipart/form-data" in request.content_type:
+        nama = request.form.get("nama", "").strip()
+        harga = request.form.get("harga")
+        kategori = request.form.get("kategori", "").strip()
+        desc = request.form.get("desc", "").strip()
+        
+        # If files were uploaded
+        if "img" in request.files:
+            file = request.files.get("img")
+            img_data = file.read() if file else b""
+        else:
+            img_data = None # Do not update image
+    else:
+        # JSON fallback
+        data = request.json or {}
+        nama = data.get("nama", "").strip()
+        harga = data.get("harga")
+        kategori = data.get("kategori", "").strip()
+        desc = data.get("desc", "").strip()
+        
+        img_url = data.get("img")
+        img_data = img_url.encode("utf-8") if img_url is not None else None
+        
     if not nama or not harga or not kategori:
         return jsonify({"error": "Nama, harga, dan kategori produk wajib diisi"}), 400
         
@@ -419,11 +504,53 @@ def api_products_edit(produk_id):
     except ValueError:
         return jsonify({"error": "Harga harus berupa angka"}), 400
         
-    produk = produk_controller.edit_produk(produk_id, nama, harga_int, kategori, img or None, desc or None)
+    produk = produk_controller.edit_produk(produk_id, nama, harga_int, kategori, img_data, desc or None)
     if not produk:
         return jsonify({"error": "Produk tidak ditemukan"}), 404
         
     return jsonify({"status": "success", "message": "Produk berhasil diperbarui", "product": produk.to_dict()})
+
+
+@api_bp.route('/products/<int:produk_id>/image', methods=['GET'])
+def api_get_product_image(produk_id):
+    produk = Produk.query.get_or_404(produk_id)
+    img_data = produk.img
+    
+    placeholder = b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x01D\x00;'
+    
+    if not img_data:
+        import io
+        return send_file(io.BytesIO(placeholder), mimetype="image/gif")
+        
+    is_url = False
+    url_str = ""
+    if isinstance(img_data, str):
+        if img_data.startswith("http"):
+            is_url = True
+            url_str = img_data
+    elif isinstance(img_data, bytes):
+        try:
+            decoded = img_data.decode('utf-8')
+            if decoded.startswith("http"):
+                is_url = True
+                url_str = decoded
+        except Exception:
+            pass
+            
+    if is_url:
+        from flask import redirect
+        return redirect(url_str)
+        
+    import io
+    mime = "image/jpeg"
+    if img_data.startswith(b"\x89PNG"):
+        mime = "image/png"
+    elif img_data.startswith(b"GIF8"):
+        mime = "image/gif"
+    elif img_data.startswith(b"RIFF") and b"WEBP" in img_data[:12]:
+        mime = "image/webp"
+        
+    return send_file(io.BytesIO(img_data), mimetype=mime)
 
 
 @api_bp.route('/products/<int:produk_id>', methods=['DELETE', 'OPTIONS'])
@@ -537,7 +664,7 @@ def api_chat_status():
 
 @api_bp.route("/chat", methods=["POST", "OPTIONS"])
 def api_chat():
-    """POST /api/chat - Chat with AI"""
+    """POST /api/chat - Chat with AI, menyimpan riwayat ke database"""
     if request.method == "OPTIONS":
         return _cors_preflight()
 
@@ -547,14 +674,127 @@ def api_chat():
 
     data = request.json or {}
     messages = data.get("messages", [])
+    session_id = data.get("session_id", "")
     if not isinstance(messages, list):
         return jsonify({"error": "Format messages tidak valid"}), 400
 
+    # Buat session baru jika belum ada
+    if not session_id:
+        session_id = str(uuid.uuid4())
+
     reply, err = chatbot_controller.chat_completion(messages, user_name=user.nama)
     if err:
-        return jsonify({"error": err}), 502 if chatbot_controller.is_configured() else 503
+        return jsonify({"error": err, "session_id": session_id}), 502 if chatbot_controller.is_configured() else 503
 
-    return jsonify({"reply": reply, "user": user.nama})
+    # Simpan pesan user terakhir dan reply AI ke database
+    try:
+        chat_session = ChatSession.query.filter_by(session_id=session_id).first()
+        if not chat_session:
+            # Ambil judul dari pesan pertama user
+            first_msg = next((m.get("content", "")[:80] for m in messages if m.get("role") == "user"), "Chat Baru")
+            chat_session = ChatSession(
+                session_id=session_id,
+                user_id=user.id,
+                title=first_msg or "Chat Baru"
+            )
+            db.session.add(chat_session)
+            db.session.flush()
+
+        # Simpan pesan user terakhir
+        last_user_msg = None
+        for m in reversed(messages):
+            if m.get("role") == "user" and m.get("content"):
+                last_user_msg = m["content"]
+                break
+
+        if last_user_msg:
+            user_entry = ChatHistory(
+                user_id=user.id,
+                session_id=session_id,
+                role="user",
+                content=last_user_msg
+            )
+            db.session.add(user_entry)
+
+        # Simpan reply AI
+        ai_entry = ChatHistory(
+            user_id=user.id,
+            session_id=session_id,
+            role="assistant",
+            content=reply
+        )
+        db.session.add(ai_entry)
+
+        chat_session.updated_at = datetime.utcnow()
+        db.session.commit()
+    except Exception as e:
+        log.error(f"Gagal menyimpan chat history: {e}")
+        db.session.rollback()
+
+    return jsonify({"reply": reply, "user": user.nama, "session_id": session_id})
+
+
+# ============================================
+# CHAT HISTORY ENDPOINTS
+# ============================================
+
+@api_bp.route("/chat/history", methods=["GET", "OPTIONS"])
+def api_chat_history_list():
+    """GET /api/chat/history - Daftar sesi chat user"""
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    user = _get_user_from_request()
+    if not user:
+        return jsonify({"error": "Belum login"}), 401
+    sessions = ChatSession.query.filter_by(user_id=user.id).order_by(ChatSession.updated_at.desc()).all()
+    return jsonify({"sessions": [s.to_dict() for s in sessions]})
+
+
+@api_bp.route("/chat/history/<session_id>", methods=["GET", "OPTIONS"])
+def api_chat_history_detail(session_id):
+    """GET /api/chat/history/<session_id> - Detail percakapan satu sesi"""
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    user = _get_user_from_request()
+    if not user:
+        return jsonify({"error": "Belum login"}), 401
+    session = ChatSession.query.filter_by(session_id=session_id, user_id=user.id).first()
+    if not session:
+        return jsonify({"error": "Sesi chat tidak ditemukan"}), 404
+    return jsonify({"session": session.to_dict(include_messages=True)})
+
+
+@api_bp.route("/chat/history/<session_id>", methods=["DELETE", "OPTIONS"])
+def api_chat_history_delete(session_id):
+    """DELETE /api/chat/history/<session_id> - Hapus satu sesi chat"""
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    user = _get_user_from_request()
+    if not user:
+        return jsonify({"error": "Belum login"}), 401
+    session = ChatSession.query.filter_by(session_id=session_id, user_id=user.id).first()
+    if not session:
+        return jsonify({"error": "Sesi chat tidak ditemukan"}), 404
+    ChatHistory.query.filter_by(session_id=session_id).delete()
+    db.session.delete(session)
+    db.session.commit()
+    return jsonify({"status": "success", "message": "Sesi chat dihapus"})
+
+
+@api_bp.route("/chat/history", methods=["DELETE", "OPTIONS"])
+def api_chat_history_clear():
+    """DELETE /api/chat/history - Hapus semua riwayat chat user"""
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    user = _get_user_from_request()
+    if not user:
+        return jsonify({"error": "Belum login"}), 401
+    sessions = ChatSession.query.filter_by(user_id=user.id).all()
+    for s in sessions:
+        ChatHistory.query.filter_by(session_id=s.session_id).delete()
+        db.session.delete(s)
+    db.session.commit()
+    return jsonify({"status": "success", "message": "Semua riwayat chat dihapus"})
 
 
 # ============================================
@@ -792,6 +1032,64 @@ def api_save_setting():
     setting.value = value
     db.session.commit()
     return jsonify({"status": "success", "setting": setting.to_dict()})
+
+
+@api_bp.route("/settings/upload-logo", methods=["POST", "OPTIONS"])
+def api_upload_logo():
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+        
+    user = _get_user_from_request()
+    if not user or not user.is_admin:
+        from BackEnd.logger import get_logger
+        log = get_logger("routes")
+        log.warning(f"Upload logo ditolak. User: {user.email if user else 'None'}, is_admin: {user.is_admin if user else 'N/A'}")
+        return jsonify({"error": "Akses ditolak: Hanya admin yang dapat mengubah logo toko"}), 403
+        
+    if "logo" not in request.files:
+        return jsonify({"error": "File logo tidak ditemukan dalam request"}), 400
+        
+    file = request.files["logo"]
+    if file.filename == "":
+        return jsonify({"error": "Tidak ada file yang dipilih"}), 400
+        
+    allowed_extensions = {"png", "jpg", "jpeg", "gif", "svg", "webp"}
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if ext not in allowed_extensions:
+        return jsonify({"error": f"Format file tidak didukung. Gunakan: {', '.join(allowed_extensions)}"}), 400
+        
+    from pathlib import Path
+    backend_root = Path(__file__).resolve().parent.parent
+    upload_dir = backend_root / "uploads"
+    upload_dir.mkdir(exist_ok=True)
+    
+    filename = f"logo_{uuid.uuid4().hex[:8]}.{ext}"
+    file_path = upload_dir / filename
+    file.save(str(file_path))
+    
+    logo_url = f"{request.host_url.rstrip('/')}/api/uploads/{filename}"
+    
+    setting = TokoSetting.query.get("logo")
+    if not setting:
+        setting = TokoSetting(key="logo")
+        db.session.add(setting)
+    setting.value = logo_url
+    db.session.commit()
+    
+    return jsonify({
+        "status": "success",
+        "message": "Logo berhasil diupload dan disimpan",
+        "value": logo_url
+    })
+
+
+@api_bp.route("/uploads/<filename>", methods=["GET"])
+def api_get_uploaded_file(filename):
+    from flask import send_from_directory
+    from pathlib import Path
+    backend_root = Path(__file__).resolve().parent.parent
+    upload_dir = backend_root / "uploads"
+    return send_from_directory(str(upload_dir), filename)
 
 
 # ============================================

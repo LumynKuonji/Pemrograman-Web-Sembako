@@ -211,7 +211,7 @@
       <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
         <div class="form-group">
           <label for="adminEmail">Email</label>
-          <input type="email" id="adminEmail" class="form-control" placeholder="admin@sembako.com" required autocomplete="email">
+          <input type="email" id="adminEmail" class="form-control" placeholder="Masukkan email admin" required autocomplete="email">
         </div>
 
         <div class="form-group" style="margin-bottom: 24px;">
@@ -225,6 +225,8 @@
         </button>
       </form>
 
+
+
       <div class="back-store">
         <a href="../FrontEnd/index.html">← Kembali ke Halaman Toko</a>
       </div>
@@ -233,6 +235,8 @@
 
   <script>
     const API_BASE = "http://127.0.0.1:5000/api";
+
+
 
     // Redirect to index if already logged in as admin
     document.addEventListener("DOMContentLoaded", () => {

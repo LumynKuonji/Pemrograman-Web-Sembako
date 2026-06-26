@@ -23,11 +23,21 @@ const inputDesc = document.getElementById("productDesc");
 const imgPreview = document.getElementById("imgPreview");
 const previewPlaceholder = document.getElementById("previewPlaceholder");
 
-function updateImagePreview(url) {
-  if (url) {
-    imgPreview.src = url;
-    imgPreview.style.display = "block";
-    previewPlaceholder.style.display = "none";
+function updateImagePreview(srcOrFile) {
+  if (srcOrFile) {
+    if (typeof srcOrFile === "string") {
+      imgPreview.src = srcOrFile;
+      imgPreview.style.display = "block";
+      previewPlaceholder.style.display = "none";
+    } else if (srcOrFile instanceof File) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        imgPreview.src = e.target.result;
+        imgPreview.style.display = "block";
+        previewPlaceholder.style.display = "none";
+      };
+      reader.readAsDataURL(srcOrFile);
+    }
   } else {
     imgPreview.style.display = "none";
     imgPreview.src = "";
@@ -45,8 +55,12 @@ document.addEventListener("DOMContentLoaded", () => {
 // Event Listeners
 function setupEventListeners() {
   // Live Image Preview in Modal
-  inputImg.addEventListener("input", () => {
-    updateImagePreview(inputImg.value.trim());
+  inputImg.addEventListener("change", () => {
+    if (inputImg.files && inputImg.files[0]) {
+      updateImagePreview(inputImg.files[0]);
+    } else {
+      updateImagePreview(null);
+    }
   });
 
   // Search & Filter
@@ -188,7 +202,7 @@ function openEditModal(id) {
   inputNama.value = p.nama;
   inputHarga.value = p.harga;
   inputKategori.value = p.kategori;
-  inputImg.value = p.img || "";
+  inputImg.value = ""; // Reset file input
   inputDesc.value = p.desc || "";
 
   updateImagePreview(p.img || "");
@@ -207,7 +221,6 @@ async function handleFormSubmit(e) {
   const nama = inputNama.value.trim();
   const harga = parseInt(inputHarga.value);
   const kategori = inputKategori.value.trim();
-  const img = inputImg.value.trim();
   const desc = inputDesc.value.trim();
 
   if (!nama || !harga || !kategori) {
@@ -215,7 +228,16 @@ async function handleFormSubmit(e) {
     return;
   }
 
-  const payload = { nama, harga, kategori, img, desc };
+  const formData = new FormData();
+  formData.append("nama", nama);
+  formData.append("harga", harga);
+  formData.append("kategori", kategori);
+  formData.append("desc", desc);
+  
+  if (inputImg.files && inputImg.files[0]) {
+    formData.append("img", inputImg.files[0]);
+  }
+
   const method = editingProductId ? "PUT" : "POST";
   const url = editingProductId ? `${API_BASE}/products/${editingProductId}` : `${API_BASE}/products`;
 
@@ -227,7 +249,7 @@ async function handleFormSubmit(e) {
 
   try {
     const session = JSON.parse(localStorage.getItem("sembako_admin_session"));
-    const headers = { "Content-Type": "application/json" };
+    const headers = {};
     if (session && session.token) {
       headers.Authorization = `Bearer ${session.token}`;
     }
@@ -235,7 +257,7 @@ async function handleFormSubmit(e) {
     const res = await fetch(url, {
       method: method,
       headers: headers,
-      body: JSON.stringify(payload)
+      body: formData
     });
 
     const result = await res.json();
@@ -361,14 +383,16 @@ function handleAdminLogout() {
 
 // Load Store Logo on Admin Page Load
 async function loadStoreLogo() {
-  const storeLogoInput = document.getElementById("storeLogoInput");
-  if (!storeLogoInput) return;
+  const preview = document.getElementById("storeLogoPreview");
+  const container = document.getElementById("storeLogoPreviewContainer");
+  if (!preview) return;
   try {
     const res = await fetch(`${API_BASE}/settings/logo`);
     if (res.ok) {
       const data = await res.json();
       if (data && data.value) {
-        storeLogoInput.value = data.value;
+        preview.src = data.value;
+        container.style.display = "flex";
       }
     }
   } catch (error) {
@@ -376,47 +400,74 @@ async function loadStoreLogo() {
   }
 }
 
-// Save Store Logo
+// Save Store Logo (Upload File)
 async function saveStoreLogo() {
-  const storeLogoInput = document.getElementById("storeLogoInput");
-  if (!storeLogoInput) return;
-  const logoUrl = storeLogoInput.value.trim();
+  const fileInput = document.getElementById("storeLogoInput");
+  if (!fileInput || fileInput.files.length === 0) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Pilih Gambar',
+      text: 'Silakan pilih file logo gambar terlebih dahulu sebelum menyimpan.',
+      confirmButtonColor: '#5a8f8a',
+    });
+    return;
+  }
+
+  const file = fileInput.files[0];
+  const formData = new FormData();
+  formData.append("logo", file);
 
   Swal.fire({
-    title: 'Menyimpan Logo...',
+    title: 'Mengupload Logo...',
     allowOutsideClick: false,
     didOpen: () => { Swal.showLoading(); }
   });
 
   try {
     const session = JSON.parse(localStorage.getItem("sembako_admin_session"));
-    const headers = { "Content-Type": "application/json" };
+    const headers = {};
     if (session && session.token) {
       headers.Authorization = `Bearer ${session.token}`;
     }
 
-    const res = await fetch(`${API_BASE}/settings`, {
+    const res = await fetch(`${API_BASE}/settings/upload-logo`, {
       method: "POST",
       headers: headers,
-      body: JSON.stringify({ key: "logo", value: logoUrl })
+      body: formData
     });
 
     const result = await res.json();
-    if (!res.ok) throw new Error(result.error || "Gagal menyimpan logo");
+    if (!res.ok) throw new Error(result.error || "Gagal mengupload logo");
+
+    // Update preview
+    const preview = document.getElementById("storeLogoPreview");
+    const container = document.getElementById("storeLogoPreviewContainer");
+    if (preview && container) {
+      preview.src = result.value;
+      container.style.display = "flex";
+    }
+
+    // Reset file input
+    fileInput.value = "";
 
     Swal.close();
     Swal.fire({
       icon: 'success',
-      title: 'Logo Disimpan!',
+      title: 'Logo Diupload!',
       text: 'Logo toko berhasil diperbarui.',
       timer: 2000,
       showConfirmButton: false
     });
   } catch (error) {
+    let msg = error.message;
+    if (msg.includes("Akses ditolak")) {
+      msg += "\n\n(Saran: Silakan klik tombol 'Keluar' di menu kiri lalu masuk kembali, kemungkinan sesi login Anda di database telah kedaluwarsa atau terhapus setelah server/DB di-restart).";
+    }
     Swal.fire({
       icon: 'error',
       title: 'Gagal Menyimpan Logo',
-      text: error.message
+      text: msg,
+      confirmButtonColor: '#5a8f8a',
     });
   }
 }

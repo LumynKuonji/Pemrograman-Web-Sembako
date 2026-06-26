@@ -1,5 +1,8 @@
 import os
 from pathlib import Path
+from BackEnd.logger import get_logger
+
+log = get_logger("chatbot")
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
@@ -136,6 +139,35 @@ def is_configured():
     return bool(base_url and api_key)
 
 
+def log_startup_status():
+    """Log status konfigurasi AI saat startup."""
+    provider, base_url, api_key, model = get_ai_config()
+    ai_env = BACKEND_ROOT / "config_ai.env"
+    router_env = BACKEND_ROOT / "config_9router.env"
+
+    log.info("=" * 50)
+    log.info("KONFIGURASI CHATBOT AI")
+    log.info(f"  Provider  : {provider}")
+    log.info(f"  Base URL  : {base_url or '(not set)'}")
+    log.info(f"  API Key   : {'***' + api_key[-4:] if len(api_key) >= 4 else '(not set)'}")
+    log.info(f"  Model     : {model}")
+
+    if ai_env.exists():
+        log.info(f"  Config    : {ai_env} [DITEMUKAN]")
+    elif router_env.exists():
+        log.info(f"  Config    : {router_env} [DITEMUKAN - legacy]")
+    else:
+        log.warning(f"  Config    : config_ai.env [TIDAK ADA]")
+        log.warning(f"  Buat file {ai_env} berdasarkan config_ai.example.env")
+
+    if is_configured():
+        log.info(f"  Status    : ✅ SIAP (configured)")
+    else:
+        log.warning(f"  Status    : ❌ BELUM DIKONFIGURASI")
+        log.warning(f"  Isi AI_API_KEY di BackEnd/config_ai.env")
+    log.info("=" * 50)
+
+
 def _provider_label(provider: str) -> str:
     labels = {
         "nvidia": "NVIDIA NIM",
@@ -150,6 +182,7 @@ def chat_completion(messages: list, user_name: str = "Pelanggan"):
     label = _provider_label(provider)
 
     if not base_url or not api_key:
+        log.warning(f"Chat request ditolak: AI belum dikonfigurasi (provider={provider})")
         return None, (
             "Chatbot belum dikonfigurasi. Isi AI_API_KEY di BackEnd/config_ai.env "
             "(NVIDIA: https://build.nvidia.com)"
@@ -158,6 +191,7 @@ def chat_completion(messages: list, user_name: str = "Pelanggan"):
     try:
         from openai import OpenAI
     except ImportError:
+        log.error("Library openai belum terpasang")
         return None, "Library openai belum terpasang. Jalankan: pip install -r requirements.txt"
 
     extra_headers = None
@@ -185,6 +219,8 @@ def chat_completion(messages: list, user_name: str = "Pelanggan"):
     if len(api_messages) < 2:
         return None, "Pesan tidak boleh kosong"
 
+    log.info(f"Sending chat request to {label} (model={model}, messages={len(api_messages)})")
+
     try:
         response = client.chat.completions.create(
             model=model,
@@ -193,9 +229,11 @@ def chat_completion(messages: list, user_name: str = "Pelanggan"):
             max_tokens=1024,
         )
         reply = response.choices[0].message.content
+        log.info(f"Chat reply received ({len(reply)} chars)")
         return reply, None
     except Exception as exc:
         err = str(exc)
+        log.error(f"Chat completion error: {err}")
         if "Connection" in err or "connect" in err.lower():
             hints = {
                 "nvidia": "Periksa https://integrate.api.nvidia.com/v1 dan API key dari build.nvidia.com",

@@ -44,6 +44,7 @@ class User(db.Model):
     sessions = db.relationship("UserSession", backref="user", lazy=True, cascade="all, delete-orphan")
     keranjang_items = db.relationship("ItemKeranjang", backref="user", lazy=True, cascade="all, delete-orphan")
     orders = db.relationship("Pesanan", backref="user", lazy=True)
+    chat_messages = db.relationship("ChatHistory", backref="user", lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self, include_email=True):
         data = {
@@ -76,7 +77,7 @@ class Produk(db.Model):
     nama = db.Column(db.String(100), nullable=False)
     harga = db.Column(db.Integer, nullable=False)
     kategori = db.Column(db.String(50), nullable=False)
-    img = db.Column(db.String(500))
+    img = db.Column(db.LargeBinary)
     desc = db.Column(db.Text)
 
     def to_dict(self):
@@ -85,7 +86,7 @@ class Produk(db.Model):
             "nama": self.nama,
             "harga": self.harga,
             "kategori": self.kategori,
-            "img": self.img,
+            "img": f"http://127.0.0.1:5000/api/products/{self.id}/image" if self.img else None,
             "desc": self.desc,
         }
 
@@ -200,3 +201,53 @@ class EmailLog(db.Model):
         if include_html:
             data["html_content"] = self.html_content
         return data
+
+
+class ChatHistory(db.Model):
+    """Riwayat chat AI per user"""
+    __tablename__ = "chat_history"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    session_id = db.Column(db.String(64), nullable=False, index=True)
+    role = db.Column(db.String(20), nullable=False)  # 'user' atau 'assistant'
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "session_id": self.session_id,
+            "role": self.role,
+            "content": self.content,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ChatSession(db.Model):
+    """Metadata sesi chat"""
+    __tablename__ = "chat_sessions"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    session_id = db.Column(db.String(64), nullable=False, unique=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    title = db.Column(db.String(255), default="Chat Baru")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    messages = db.relationship("ChatHistory", backref="session",
+                               primaryjoin="ChatSession.session_id == foreign(ChatHistory.session_id)",
+                               lazy=True, cascade="all, delete-orphan")
+
+    def to_dict(self, include_messages=False):
+        data = {
+            "session_id": self.session_id,
+            "title": self.title,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+        if include_messages:
+            data["messages"] = [m.to_dict() for m in
+                                sorted(self.messages, key=lambda x: x.created_at)]
+        return data
+
