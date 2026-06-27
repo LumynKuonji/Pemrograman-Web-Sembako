@@ -623,7 +623,8 @@ function showOTPVerificationModal(email, returnUrl = 'index.html') {
     html: 
       `<p style="font-size: 14px; color: #4a5568; margin-bottom: 15px;">Kami telah mengirimkan 6 digit kode OTP ke email <strong>${email}</strong>. Masukkan kode tersebut untuk memverifikasi akun Anda:</p>` +
       '<input id="swal-otp" class="swal2-input" placeholder="000000" maxlength="6" style="text-align:center; letter-spacing: 5px; font-weight:bold; font-size: 24px; max-width: 220px; margin: 15px auto;">' +
-      '<div style="margin-top: 15px;"><button type="button" id="swal-resend-btn" style="background:none;border:none;padding:0;color:#5a8f8a;font-weight:600;font-size:14px;cursor:pointer">Kirim Ulang OTP</button></div>',
+      '<div style="margin-top: 15px;"><button type="button" id="swal-resend-btn" style="background:none;border:none;padding:0;color:#5a8f8a;font-weight:600;font-size:14px;cursor:pointer">Kirim Ulang OTP</button></div>' +
+      '<div id="swal-otp-message" style="margin-top: 10px; font-size: 13px; font-weight: 500; min-height: 18px;"></div>',
     confirmButtonText: 'Verifikasi Akun',
     allowOutsideClick: false,
     showCancelButton: true,
@@ -651,8 +652,17 @@ function showOTPVerificationModal(email, returnUrl = 'index.html') {
           method: 'POST',
           body: JSON.stringify({ email, otp_type: 'register' })
         });
+        const messageEl = document.getElementById('swal-otp-message');
         if (res.ok) {
-          AppAlert.toast("OTP Baru berhasil dikirim!", "top-end", 2500);
+          if (messageEl) {
+            messageEl.style.color = '#10b981';
+            messageEl.textContent = 'OTP Baru berhasil dikirim!';
+            setTimeout(() => {
+              if (messageEl.textContent === 'OTP Baru berhasil dikirim!') {
+                messageEl.textContent = '';
+              }
+            }, 4000);
+          }
           let count = 30;
           resendBtn.textContent = `Kirim Ulang (${count}s)`;
           const interval = setInterval(() => {
@@ -667,7 +677,15 @@ function showOTPVerificationModal(email, returnUrl = 'index.html') {
             }
           }, 1000);
         } else {
-          AppAlert.toast(res.data.error || "Gagal kirim ulang OTP", "top-end", 2500);
+          if (messageEl) {
+            messageEl.style.color = '#ef4444';
+            messageEl.textContent = res.data.error || 'Gagal kirim ulang OTP';
+            setTimeout(() => {
+              if (messageEl.textContent === (res.data.error || 'Gagal kirim ulang OTP')) {
+                messageEl.textContent = '';
+              }
+            }, 4000);
+          }
           resendBtn.style.pointerEvents = 'auto';
           resendBtn.style.color = '#5a8f8a';
           resendBtn.textContent = 'Kirim Ulang OTP';
