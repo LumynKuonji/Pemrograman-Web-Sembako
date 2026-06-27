@@ -18,6 +18,10 @@ const categoryFilter = document.getElementById("categoryFilter");
 const productModal = document.getElementById("productModal");
 const modalTitle = document.getElementById("modalTitle");
 const productForm = document.getElementById("productForm");
+const productsView = document.getElementById("productsView");
+const statsView = document.getElementById("statsView");
+const pageTitle = document.getElementById("pageTitle");
+const pageSubtitle = document.getElementById("pageSubtitle");
 const inputId = document.getElementById("productId");
 const inputNama = document.getElementById("productNama");
 const inputHarga = document.getElementById("productHarga");
@@ -56,10 +60,30 @@ function updateImagePreview(srcOrFile) {
 
 // Initial Load
 document.addEventListener("DOMContentLoaded", () => {
+  showAdminView("products");
   fetchProducts();
+  loadSalesStatistics();
   setupEventListeners();
   loadStoreLogo();
 });
+
+function showAdminView(view) {
+  document.querySelectorAll(".menu-item").forEach((item) => item.classList.remove("active"));
+
+  if (view === "stats") {
+    document.getElementById("statsMenuItem")?.classList.add("active");
+    productsView?.classList.remove("active");
+    statsView?.classList.add("active");
+    if (pageTitle) pageTitle.textContent = "Statistik Penjualan";
+    if (pageSubtitle) pageSubtitle.textContent = "Pantau penjualan mingguan dan keuntungan dari pesanan pelanggan.";
+  } else {
+    document.getElementById("productsMenuItem")?.classList.add("active");
+    productsView?.classList.add("active");
+    statsView?.classList.remove("active");
+    if (pageTitle) pageTitle.textContent = "Manajemen Produk";
+    if (pageSubtitle) pageSubtitle.textContent = "Kelola semua barang sembako yang ditawarkan kepada pelanggan.";
+  }
+}
 
 // Event Listeners
 function setupEventListeners() {
@@ -163,7 +187,142 @@ function updateMetrics() {
 
 // Format number as Rupiah currency
 function formatRupiah(amount) {
-  return "Rp " + amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  if (amount === null || amount === undefined || isNaN(amount)) return "Rp 0";
+  return "Rp " + Number(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+async function loadSalesStatistics() {
+  const placeholder = document.getElementById("salesChartPlaceholder");
+  const tableBody = document.getElementById("salesStatsTableBody");
+
+  try {
+    const session = JSON.parse(localStorage.getItem("sembako_admin_session"));
+    const headers = {};
+    if (session && session.token) {
+      headers.Authorization = `Bearer ${session.token}`;
+    }
+
+    const res = await fetch(`${API_BASE}/admin/sales-statistics`, { headers });
+    if (!res.ok) throw new Error("Gagal mengambil data statistik penjualan");
+
+    const data = await res.json();
+    updateSalesSummary(data.summary);
+    renderSalesChart(data.weeks);
+    renderSalesTable(data.weeks);
+
+    if (placeholder) placeholder.style.display = "none";
+  } catch (error) {
+    if (placeholder) {
+      placeholder.textContent = error.message;
+      placeholder.style.display = "block";
+    }
+    if (tableBody) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 24px;">${error.message}</td>
+        </tr>
+      `;
+    }
+  }
+}
+
+function updateSalesSummary(summary) {
+  const total = summary?.total_revenue || 0;
+  const profit = summary?.total_profit || 0;
+  const avg = summary?.average_per_week || 0;
+  const peak = summary?.peak_week || "Belum ada data";
+
+  document.getElementById("salesTotalValue").textContent = formatRupiah(total);
+  document.getElementById("salesProfitValue").textContent = formatRupiah(profit);
+  document.getElementById("salesAvgValue").textContent = formatRupiah(avg);
+  document.getElementById("salesPeakValue").textContent = peak;
+}
+
+function renderSalesChart(weeks) {
+  const chart = document.getElementById("salesChart");
+  if (!chart) return;
+
+  if (!weeks || weeks.length === 0) {
+    chart.innerHTML = '<div class="chart-empty">Belum ada data penjualan untuk ditampilkan.</div>';
+    return;
+  }
+
+  const width = 720;
+  const height = 280;
+  const padding = 42;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+  const maxValue = Math.max(
+    1,
+    ...weeks.flatMap((week) => [week.revenue || 0, week.profit || 0])
+  );
+
+  const createLine = (series, color) => {
+    const points = weeks.map((week, index) => {
+      const x = padding + (weeks.length > 1 ? (index * chartWidth) / (weeks.length - 1) : chartWidth / 2);
+      const y = padding + chartHeight - ((series[index] || 0) / maxValue) * chartHeight;
+      return { x, y, value: series[index] || 0 };
+    });
+
+    const path = points.map((point) => `${point.x},${point.y}`).join(" ");
+    return { points, path, color };
+  };
+
+  const revenueSeries = weeks.map((week) => week.revenue || 0);
+  const profitSeries = weeks.map((week) => week.profit || 0);
+  const revenueLine = createLine(revenueSeries, "#5a8f8a");
+  const profitLine = createLine(profitSeries, "#10b981");
+
+  const svg = `
+    <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+      <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="#cbd5e1" stroke-width="1"></line>
+      <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" stroke="#cbd5e1" stroke-width="1"></line>
+      ${[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+        const y = padding + chartHeight - ratio * chartHeight;
+        return `<line x1="${padding}" y1="${y}" x2="${width - padding}" y2="${y}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 3"></line>`;
+      }).join("")}
+      <polyline fill="none" stroke="${revenueLine.color}" stroke-width="3" points="${revenueLine.path}"></polyline>
+      <polyline fill="none" stroke="${profitLine.color}" stroke-width="3" points="${profitLine.path}"></polyline>
+      ${revenueLine.points.map((point, index) => `
+        <circle cx="${point.x}" cy="${point.y}" r="5" fill="${revenueLine.color}"></circle>
+        <text x="${point.x}" y="${height - 12}" text-anchor="middle" font-size="11" fill="#64748b">${weeks[index].label}</text>
+      `).join("")}
+      ${profitLine.points.map((point) => `
+        <circle cx="${point.x}" cy="${point.y}" r="4" fill="${profitLine.color}"></circle>
+      `).join("")}
+      <text x="${padding}" y="18" font-size="11" fill="#64748b">${formatRupiah(maxValue)}</text>
+      <text x="${padding}" y="${height - 12}" font-size="11" fill="#64748b">0</text>
+    </svg>
+    <div class="chart-legend">
+      <span class="legend-item"><span class="legend-dot" style="background:#5a8f8a"></span>Penjualan</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#10b981"></span>Keuntungan</span>
+    </div>
+  `;
+
+  chart.innerHTML = svg;
+}
+
+function renderSalesTable(weeks) {
+  const tableBody = document.getElementById("salesStatsTableBody");
+  if (!tableBody) return;
+
+  if (!weeks || weeks.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 24px;">Belum ada data.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  tableBody.innerHTML = weeks.map((week) => `
+    <tr>
+      <td>${week.label}</td>
+      <td>${formatRupiah(week.revenue || 0)}</td>
+      <td>${formatRupiah(week.profit || 0)}</td>
+      <td>${week.orders || 0}</td>
+    </tr>
+  `).join("");
 }
 
 // Filter and Render Products inside Table

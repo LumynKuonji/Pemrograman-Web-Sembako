@@ -1,8 +1,8 @@
-CREATE DATABASE IF NOT EXISTS sembako
+CREATE DATABASE IF NOT EXISTS toko_sembako
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
-USE sembako;
+USE toko_sembako;
 
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,

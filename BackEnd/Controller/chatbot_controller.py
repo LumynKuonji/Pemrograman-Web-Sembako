@@ -234,7 +234,8 @@ def chat_completion(messages: list, user_name: str = "Pelanggan"):
     except Exception as exc:
         err = str(exc)
         log.error(f"Chat completion error: {err}")
-        if "Connection" in err or "connect" in err.lower():
+        error_text = err.lower()
+        if "Connection" in err or "connect" in error_text:
             hints = {
                 "nvidia": "Periksa https://integrate.api.nvidia.com/v1 dan API key dari build.nvidia.com",
                 "openrouter": "Periksa https://openrouter.ai/api/v1 dan koneksi internet",
@@ -243,7 +244,16 @@ def chat_completion(messages: list, user_name: str = "Pelanggan"):
             hint = hints.get(provider, "Periksa AI_BASE_URL dan koneksi")
             return None, f"Tidak dapat terhubung ke {label}. {hint}"
         if provider == "nvidia" and (
-            "model" in err.lower() or "404" in err or "not found" in err.lower()
+            "403" in err
+            or "forbidden" in error_text
+            or "authorization failed" in error_text
+        ):
+            return None, (
+                "NVIDIA menolak akses. Kemungkinan API key tidak valid, kadaluarsa, atau tidak punya akses ke model yang dipilih. "
+                "Buat API key baru di https://build.nvidia.com, paste ke BackEnd/config_ai.env, lalu restart server."
+            )
+        if provider == "nvidia" and (
+            "model" in error_text or "404" in err or "not found" in error_text
         ):
             return None, (
                 f"Model '{model}' tidak dikenali NVIDIA NIM. "

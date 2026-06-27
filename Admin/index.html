@@ -34,10 +34,16 @@
     </div>
     
     <ul class="sidebar-menu">
-      <li class="menu-item active">
-        <a href="#">
+      <li class="menu-item active" id="productsMenuItem">
+        <a href="#" onclick="showAdminView('products'); return false;">
           <svg style="width:20px;height:20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
           <span>Kelola Produk</span>
+        </a>
+      </li>
+      <li class="menu-item" id="statsMenuItem">
+        <a href="#" onclick="showAdminView('stats'); return false;">
+          <svg style="width:20px;height:20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 15l4-4 3 3 5-7"></path></svg>
+          <span>Statistik Penjualan</span>
         </a>
       </li>
       <li class="menu-item">
@@ -62,8 +68,8 @@
     <!-- Topbar Header -->
     <div class="topbar">
       <div class="page-title">
-        <h1>Manajemen Produk</h1>
-        <p>Kelola semua barang sembako yang ditawarkan kepada pelanggan.</p>
+        <h1 id="pageTitle">Manajemen Produk</h1>
+        <p id="pageSubtitle">Kelola semua barang sembako yang ditawarkan kepada pelanggan.</p>
       </div>
       <div class="logo-settings-topbar">
         <div class="store-logo-wrapper" onclick="document.getElementById('storeLogoInput').click()" title="Klik untuk mengubah logo">
@@ -85,72 +91,127 @@
         </button>
       </div>
     </div>
-    
-    <!-- Metrics Grid -->
-    <section class="metrics-grid">
-      <div class="metric-card">
-        <div class="metric-info">
-          <h3>Total Produk</h3>
-          <div id="totalProductsVal" class="value">-</div>
-        </div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-info">
-          <h3>Jumlah Kategori</h3>
-          <div id="totalCategoriesVal" class="value">-</div>
-        </div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-info">
-          <h3>Rata-rata Harga</h3>
-          <div id="avgPriceVal" class="value">-</div>
-        </div>
-      </div>
-    </section>
 
-    <!-- Product Database Management Card -->
-    <section class="data-card">
-      <div class="card-header">
-        
-        <!-- Search and Filters -->
-        <div class="search-filter-box">
-          <div class="search-input-wrapper">
-            <input type="text" id="searchInput" class="search-input" placeholder="Cari nama produk...">
+    <section id="productsView" class="admin-view active">
+      <!-- Metrics Grid -->
+      <section class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-info">
+            <h3>Total Produk</h3>
+            <div id="totalProductsVal" class="value">-</div>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-info">
+            <h3>Jumlah Kategori</h3>
+            <div id="totalCategoriesVal" class="value">-</div>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-info">
+            <h3>Rata-rata Harga</h3>
+            <div id="avgPriceVal" class="value">-</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Product Database Management Card -->
+      <section class="data-card">
+        <div class="card-header">
+          
+          <!-- Search and Filters -->
+          <div class="search-filter-box">
+            <div class="search-input-wrapper">
+              <input type="text" id="searchInput" class="search-input" placeholder="Cari nama produk...">
+            </div>
+            
+            <select id="categoryFilter" class="select-filter">
+              <option value="Semua">Semua Kategori</option>
+            </select>
           </div>
           
-          <select id="categoryFilter" class="select-filter">
-            <option value="Semua">Semua Kategori</option>
-          </select>
+          <!-- Action Button -->
+          <button class="btn-primary" onclick="openAddModal()">
+            <span>Tambah Produk</span>
+          </button>
         </div>
-        
-        <!-- Action Button -->
-        <button class="btn-primary" onclick="openAddModal()">
-          <span>Tambah Produk</span>
-        </button>
+
+        <!-- Table View -->
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Informasi Produk</th>
+                <th>Harga Satuan</th>
+                <th>Kategori</th>
+                <th>Stok</th>
+                <th>SKU ID</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="productsTableBody">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 32px;">
+                  Mengambil data produk...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <section id="statsView" class="admin-view">
+      <div class="stats-summary-grid">
+        <div class="stat-box">
+          <span class="stat-label">Total Penjualan</span>
+          <div id="salesTotalValue" class="stat-value">-</div>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Keuntungan Estimasi</span>
+          <div id="salesProfitValue" class="stat-value">-</div>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Rata-rata / Minggu</span>
+          <div id="salesAvgValue" class="stat-value">-</div>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Minggu Tertinggi</span>
+          <div id="salesPeakValue" class="stat-value">-</div>
+        </div>
       </div>
 
-      <!-- Table View -->
-      <div class="table-responsive">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Informasi Produk</th>
-              <th>Harga Satuan</th>
-              <th>Kategori</th>
-              <th>Stok</th>
-              <th>SKU ID</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody id="productsTableBody">
-            <tr>
-              <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 32px;">
-                Mengambil data produk...
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <section class="data-card stats-card">
+        <div class="card-header">
+          <div>
+            <h2 class="stats-title">Statistik Penjualan Mingguan</h2>
+            <p class="stats-subtitle">Grafik titik dan garis untuk nilai uang tiap minggu.</p>
+          </div>
+        </div>
+
+        <div class="stats-chart-wrapper">
+          <div id="salesChartPlaceholder" class="chart-placeholder">Mengambil data penjualan...</div>
+          <div id="salesChart" class="sales-chart"></div>
+        </div>
+
+        <div class="stats-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Minggu</th>
+                <th>Penjualan</th>
+                <th>Keuntungan</th>
+                <th>Pesanan</th>
+              </tr>
+            </thead>
+            <tbody id="salesStatsTableBody">
+              <tr>
+                <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 24px;">Belum ada data.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </section>
   </main>
 

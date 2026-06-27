@@ -216,6 +216,17 @@ body {
   font-size: 20px;
 }
 
+/* Admin View Switching */
+.admin-view {
+  display: none;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.admin-view.active {
+  display: flex;
+}
+
 /* Product Management Card Container */
 .data-card {
   background: var(--card-bg);
@@ -296,6 +307,100 @@ body {
   background-color: #649c97;
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(90, 143, 138, 0.3);
+}
+
+/* Sales Statistics Styles */
+.stats-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.stat-box {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+
+.stat-label {
+  display: block;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--dark);
+}
+
+.stats-card {
+  gap: 0;
+}
+
+.stats-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--dark);
+}
+
+.stats-subtitle {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.stats-chart-wrapper {
+  padding: 24px;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  border-top: 1px solid var(--border);
+}
+
+.sales-chart {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.chart-placeholder {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 24px;
+}
+
+.chart-empty {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 24px;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.stats-table-wrapper {
+  padding: 0 24px 24px;
 }
 
 /* Product Table */

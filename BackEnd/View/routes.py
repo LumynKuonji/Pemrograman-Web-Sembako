@@ -856,6 +856,66 @@ def api_chat_history_clear():
     return jsonify({"status": "success", "message": "Semua riwayat chat dihapus"})
 
 
+@api_bp.route("/admin/sales-statistics", methods=["GET", "OPTIONS"])
+def api_admin_sales_statistics():
+    """GET /api/admin/sales-statistics - Statistik penjualan mingguan (admin only)"""
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+
+    user = _get_user_from_request()
+    if not user or not user.is_admin:
+        return jsonify({"error": "Akses ditolak: Hanya admin"}), 403
+
+    orders = (
+        Pesanan.query.filter(Pesanan.status != "Pesanan Dibatalkan")
+        .order_by(Pesanan.created_at.asc())
+        .all()
+    )
+
+    if not orders:
+        return jsonify({
+            "weeks": [],
+            "summary": {
+                "total_revenue": 0,
+                "total_profit": 0,
+                "average_per_week": 0,
+                "peak_week": "Belum ada data"
+            }
+        })
+
+    weekly_data = {}
+    for order in orders:
+        created_at = order.created_at or datetime.utcnow()
+        start_date = orders[0].created_at.date() if orders[0].created_at else created_at.date()
+        week_index = ((created_at.date() - start_date).days // 7) + 1
+        bucket = weekly_data.setdefault(week_index, {
+            "label": f"Minggu {week_index}",
+            "revenue": 0,
+            "profit": 0,
+            "orders": 0,
+        })
+        revenue = int(order.total_harga or 0)
+        profit = max(0, revenue - int(order.ongkir or 0))
+        bucket["revenue"] += revenue
+        bucket["profit"] += profit
+        bucket["orders"] += 1
+
+    weeks = [weekly_data[key] for key in sorted(weekly_data.keys())]
+    total_revenue = sum(item["revenue"] for item in weeks)
+    total_profit = sum(item["profit"] for item in weeks)
+    peak_week = max(weeks, key=lambda item: item["revenue"])["label"] if weeks else "Belum ada data"
+
+    return jsonify({
+        "weeks": weeks,
+        "summary": {
+            "total_revenue": total_revenue,
+            "total_profit": total_profit,
+            "average_per_week": total_revenue // len(weeks) if weeks else 0,
+            "peak_week": peak_week,
+        }
+    })
+
+
 # ============================================
 # ORDER / CHECKOUT ENDPOINTS
 # ============================================
