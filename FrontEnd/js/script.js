@@ -169,19 +169,21 @@ let orders = [];
 let isCheckoutSubmitting = false;
 
 let address = JSON.parse(localStorage.getItem("sembako_address")) || {
-  alamatLengkap: "Jl. Raya Kebon Jeruk No. 45",
-  kecamatan: "Kebon Jeruk",
-  kota: "Jakarta Barat",
-  kodePos: "11530",
-  catatan: "Rumah warna hijau, depan ada pohon mangga",
+  alamatLengkap: "",
+  kecamatan: "",
+  kota: "",
+  kodePos: "",
+  catatan: "",
 };
 
 let registeredUsers =
   JSON.parse(localStorage.getItem("sembako_users")) || DEMO_USERS;
 let authSession = JSON.parse(localStorage.getItem("sembako_session"));
 let userProfile = JSON.parse(localStorage.getItem("sembako_user")) || {
-  ...DEMO_USERS[0],
-  password: "123456",
+  nama: "",
+  email: "",
+  telepon: "",
+  foto: DEFAULT_AVATAR,
 };
 let profileCropper = null;
 
@@ -906,8 +908,23 @@ async function doLogout() {
       const token = getAuthToken();
       if (token) await apiFetch("/auth/logout", { method: "POST" });
       authSession = null;
+      userProfile = {
+        nama: "",
+        email: "",
+        telepon: "",
+        foto: DEFAULT_AVATAR,
+      };
+      address = {
+        alamatLengkap: "",
+        kecamatan: "",
+        kota: "",
+        kodePos: "",
+        catatan: "",
+      };
       localStorage.removeItem("sembako_session");
       localStorage.removeItem("sembako_admin_session");
+      localStorage.removeItem("sembako_user");
+      localStorage.removeItem("sembako_address");
       cart = [];
       saveCart();
       window.updateChatbotLock?.();
@@ -1119,6 +1136,25 @@ function saveAddress() {
   localStorage.setItem("sembako_address", JSON.stringify(address));
 }
 
+async function fetchAddressFromServer() {
+  if (!isLoggedIn()) return;
+  try {
+    const res = await apiFetch("/auth/address");
+    if (res.ok && res.data) {
+      address = {
+        alamatLengkap: res.data.alamatLengkap || "",
+        kecamatan: res.data.kecamatan || "",
+        kota: res.data.kota || "",
+        kodePos: res.data.kodePos || "",
+        catatan: res.data.catatan || "",
+      };
+      saveAddress();
+    }
+  } catch (err) {
+    console.error("Gagal mengambil alamat dari server:", err);
+  }
+}
+
 function saveUserProfile() {
   localStorage.setItem("sembako_user", JSON.stringify(userProfile));
 }
@@ -1156,6 +1192,9 @@ function renderProducts(list) {
             <div class="card-content">
                 <h4 class="card-title">${p.nama}</h4>
                 <p class="card-price">${formatRupiah(p.harga)}</p>
+                <div style="font-size: 11px; font-weight: 600; color: ${(p.stok || 0) <= 0 ? '#ef4444' : ((p.stok || 0) < 10 ? '#f59e0b' : '#10b981')}; margin-top: 4px;">
+                    ${(p.stok || 0) <= 0 ? 'Stok Habis' : `Stok: ${p.stok || 0}`}
+                </div>
             </div>
         </div>
     `,
@@ -1195,7 +1234,11 @@ function renderCartPage() {
 
   container.innerHTML = cart
     .map(
-      (item) => `
+      (item) => {
+        const prod = products.find(p => p.id === item.id) || {};
+        const stokTersedia = prod.stok || 0;
+        const isNearLimit = item.qty >= stokTersedia;
+        return `
         <div class="cart-item">
             ${item.img ? `<img src="${item.img}" alt="${item.nama}" style="width: 70px; height: 70px; border-radius: 8px; object-fit: cover; flex-shrink: 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
             <div class="card-img-placeholder" style="width: 70px; height: 70px; border-radius: 8px; border-bottom: none; flex-shrink: 0; ${item.img ? 'display: none;' : ''}">
@@ -1209,12 +1252,15 @@ function renderCartPage() {
                 <div class="cart-item-info">
                     <div class="cart-item-name">${item.nama}</div>
                     <div class="cart-item-price">${formatRupiah(item.harga)}</div>
+                    <div style="font-size: 11px; color: ${isNearLimit ? '#ef4444' : '#718096'}; margin-top: 4px; font-weight: 500;">
+                        Stok toko: ${stokTersedia} ${isNearLimit ? '(Maksimal)' : ''}
+                    </div>
                 </div>
                 <div class="cart-item-controls">
                     <div class="qty-controls">
                         <button class="qty-btn" onclick="updateQty(${item.id}, -1)">–</button>
                         <span style="font-weight: 600; min-width: 24px; text-align: center; font-size: 14px;">${item.qty}</span>
-                        <button class="qty-btn" onclick="updateQty(${item.id}, 1)">+</button>
+                        <button class="qty-btn" onclick="updateQty(${item.id}, 1)" ${isNearLimit ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>+</button>
                     </div>
                     <button onclick="removeItem(${item.id})" class="cart-item-remove-btn">
                         Hapus
@@ -1222,7 +1268,8 @@ function renderCartPage() {
                 </div>
             </div>
         </div>
-    `,
+    `;
+      }
     )
     .join("");
 
@@ -1270,10 +1317,13 @@ function renderDetailPage() {
             <div class="detail-info">
                 <h1 class="detail-title">${product.nama}</h1>
                 <p class="detail-price">${formatRupiah(product.harga)}</p>
-                <p class="detail-desc">${product.desc}</p>
+                <p class="detail-stock" style="font-size: 13.5px; font-weight: 500; margin: 8px 0; color: ${product.stok <= 0 ? '#ef4444' : (product.stok < 10 ? '#f59e0b' : '#5a8f8a')}">
+                    Stok tersedia: <strong>${product.stok || 0}</strong> pcs
+                </p>
+                <p class="detail-desc">${product.desc || 'Tidak ada deskripsi.'}</p>
 
-                <button class="add-to-cart-btn" onclick="addToCart(${product.id})">
-                    Masukkan Keranjang
+                <button class="add-to-cart-btn" onclick="addToCart(${product.id})" ${product.stok <= 0 ? 'disabled style="opacity: 0.5; background-color: #cbd5e1; cursor: not-allowed;"' : ''}>
+                    ${product.stok <= 0 ? 'Stok Habis' : 'Masukkan Keranjang'}
                 </button>
             </div>
         </div>
@@ -1315,6 +1365,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (isLoggedIn()) {
     fetchCartFromServer();
+    await fetchAddressFromServer();
   }
 
   if (isIndex) {
@@ -1392,6 +1443,21 @@ async function updateQty(id, change) {
   const newQty = item.qty + change;
   if (newQty <= 0) {
     removeItem(id);
+    return;
+  }
+
+  const product = products.find(p => p.id === id);
+  if (product && newQty > (product.stok || 0)) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Stok Tidak Mencukupi',
+      text: `Maaf, stok untuk ${product.nama} tidak mencukupi (Tersedia: ${product.stok || 0} pcs).`,
+      customClass: {
+        popup: "custom-swal-popup",
+        title: "custom-swal-title",
+        htmlContainer: "custom-swal-html",
+      }
+    });
     return;
   }
 
@@ -1474,11 +1540,26 @@ async function addToCart(id) {
   const product = products.find((p) => p.id === id);
   if (!product) return;
 
+  const existing = cart.find((item) => item.id === id);
+  const currentQty = existing ? existing.qty : 0;
+  if (currentQty + 1 > (product.stok || 0)) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Stok Tidak Mencukupi',
+      text: `Maaf, stok untuk ${product.nama} tidak mencukupi (Tersedia: ${product.stok || 0} pcs, di keranjang Anda: ${currentQty} pcs).`,
+      customClass: {
+        popup: "custom-swal-popup",
+        title: "custom-swal-title",
+        htmlContainer: "custom-swal-html",
+      }
+    });
+    return;
+  }
+
   // Save the original cart state for rollback in case of error
   const originalCart = JSON.parse(JSON.stringify(cart));
 
   // Perform optimistic update
-  const existing = cart.find((item) => item.id === id);
   if (existing) {
     existing.qty += 1;
     saveCart();
@@ -1646,7 +1727,7 @@ function closeAddressModal() {
   document.getElementById("addressModal").style.display = "none";
 }
 
-function saveAddressFromForm() {
+async function saveAddressFromForm() {
   const newAddress = {
     alamatLengkap: document.getElementById("addr_alamat").value.trim(),
     kecamatan: document.getElementById("addr_kecamatan").value.trim(),
@@ -1664,6 +1745,25 @@ function saveAddressFromForm() {
     return;
   }
 
+  if (isLoggedIn()) {
+    try {
+      const res = await apiFetch("/auth/address", {
+        method: "PUT",
+        body: JSON.stringify(newAddress)
+      });
+      if (!res.ok) {
+        showPopup({
+          type: "error",
+          title: "Gagal Menyimpan Alamat",
+          message: res.data?.error || "Gagal menyimpan alamat ke server.",
+        });
+        return;
+      }
+    } catch (err) {
+      console.error("Error saving address to server:", err);
+    }
+  }
+
   address = newAddress;
   saveAddress();
   renderAddressDisplay();
@@ -1672,6 +1772,98 @@ function saveAddressFromForm() {
     type: "success",
     title: "Alamat Diperbarui!",
     message: `Alamat pengiriman ke <strong>${newAddress.kota}</strong> berhasil disimpan.`,
+  });
+}
+
+function editAddressPopup(onSavedCallback) {
+  Swal.fire({
+    title: 'Lengkapi Alamat Pengiriman',
+    html:
+      '<div style="text-align: left; font-size: 14px;">' +
+      '  <label style="display:block; margin-bottom: 5px; font-weight:600; color: #4a5568;">Alamat Lengkap *</label>' +
+      '  <textarea id="swal-addr-lengkap" class="swal2-input" style="width:100%; margin:0 0 15px 0; height:60px; padding:8px; box-sizing:border-box; border-radius: 6px; border: 1px solid #cbd5e0;" placeholder="Jl. Raya Kebon Jeruk No. 45"></textarea>' +
+      '  <label style="display:block; margin-bottom: 5px; font-weight:600; color: #4a5568;">Kecamatan</label>' +
+      '  <input id="swal-addr-kecamatan" class="swal2-input" style="width:100%; margin:0 0 15px 0; padding:8px; box-sizing:border-box; border-radius: 6px; border: 1px solid #cbd5e0; height: 38px;" placeholder="Kebon Jeruk">' +
+      '  <label style="display:block; margin-bottom: 5px; font-weight:600; color: #4a5568;">Kota *</label>' +
+      '  <input id="swal-addr-kota" class="swal2-input" style="width:100%; margin:0 0 15px 0; padding:8px; box-sizing:border-box; border-radius: 6px; border: 1px solid #cbd5e0; height: 38px;" placeholder="Jakarta Barat">' +
+      '  <label style="display:block; margin-bottom: 5px; font-weight:600; color: #4a5568;">Kode Pos *</label>' +
+      '  <input id="swal-addr-kodepos" class="swal2-input" style="width:100%; margin:0 0 15px 0; padding:8px; box-sizing:border-box; border-radius: 6px; border: 1px solid #cbd5e0; height: 38px;" placeholder="11530">' +
+      '  <label style="display:block; margin-bottom: 5px; font-weight:600; color: #4a5568;">Catatan</label>' +
+      '  <input id="swal-addr-catatan" class="swal2-input" style="width:100%; margin:0; padding:8px; box-sizing:border-box; border-radius: 6px; border: 1px solid #cbd5e0; height: 38px;" placeholder="Warna pagar, detail patokan">' +
+      '</div>',
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: 'Simpan Alamat',
+    cancelButtonText: 'Batal',
+    customClass: {
+      popup: "custom-swal-popup",
+      title: "custom-swal-title",
+      htmlContainer: "custom-swal-html",
+      closeButton: "custom-swal-close-btn",
+    },
+    showClass: { popup: "animate-custom-show" },
+    hideClass: { popup: "animate-custom-hide" },
+    didOpen: () => {
+      document.getElementById('swal-addr-lengkap').value = address.alamatLengkap || '';
+      document.getElementById('swal-addr-kecamatan').value = address.kecamatan || '';
+      document.getElementById('swal-addr-kota').value = address.kota || '';
+      document.getElementById('swal-addr-kodepos').value = address.kodePos || '';
+      document.getElementById('swal-addr-catatan').value = address.catatan || '';
+    },
+    preConfirm: () => {
+      const alamatLengkap = document.getElementById('swal-addr-lengkap').value.trim();
+      const kecamatan = document.getElementById('swal-addr-kecamatan').value.trim();
+      const kota = document.getElementById('swal-addr-kota').value.trim();
+      const kodePos = document.getElementById('swal-addr-kodepos').value.trim();
+      const catatan = document.getElementById('swal-addr-catatan').value.trim();
+
+      if (!alamatLengkap || !kota || !kodePos) {
+        Swal.showValidationMessage('Alamat Lengkap, Kota, dan Kode Pos wajib diisi!');
+        return false;
+      }
+
+      return { alamatLengkap, kecamatan, kota, kodePos, catatan };
+    }
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      const newAddress = result.value;
+      
+      if (isLoggedIn()) {
+        try {
+          const res = await apiFetch("/auth/address", {
+            method: "PUT",
+            body: JSON.stringify(newAddress)
+          });
+          if (!res.ok) {
+            Swal.fire({
+              icon: 'error',
+              title: 'Gagal',
+              text: res.data?.error || 'Gagal menyimpan alamat ke server.',
+              customClass: { popup: "custom-swal-popup", title: "custom-swal-title", htmlContainer: "custom-swal-html" }
+            });
+            return;
+          }
+        } catch (err) {
+          console.error("Error saving address to server:", err);
+        }
+      }
+
+      address = newAddress;
+      saveAddress();
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Alamat Berhasil Disimpan',
+        text: 'Alamat pengiriman Anda telah diperbarui.',
+        timer: 1500,
+        showConfirmButton: false,
+        customClass: { popup: "custom-swal-popup", title: "custom-swal-title", htmlContainer: "custom-swal-html" }
+      }).then(() => {
+        if (typeof onSavedCallback === 'function') {
+          onSavedCallback();
+        }
+      });
+    }
   });
 }
 
@@ -1970,6 +2162,28 @@ function renderCheckoutPage() {
     return;
   }
 
+  // Check if address is empty on load
+  if (!address.alamatLengkap || !address.kota || !address.kodePos) {
+    Swal.fire({
+      title: 'Alamat Pengiriman Kosong',
+      text: 'Silakan isi alamat pengiriman Anda terlebih dahulu.',
+      icon: 'info',
+      confirmButtonText: 'Isi Alamat',
+      allowOutsideClick: false,
+      customClass: {
+        popup: "custom-swal-popup",
+        title: "custom-swal-title",
+        htmlContainer: "custom-swal-html",
+      }
+    }).then((res) => {
+      if (res.isConfirmed) {
+        editAddressPopup(() => {
+          renderCheckoutPage();
+        });
+      }
+    });
+  }
+
   const itemsHTML = cart
     .map(
       (item) => `
@@ -2072,6 +2286,30 @@ async function confirmPayment() {
     return;
   }
 
+  // Check if address is empty
+  if (!address.alamatLengkap || !address.kota || !address.kodePos) {
+    Swal.fire({
+      title: 'Alamat Belum Lengkap',
+      text: 'Mohon isi alamat pengiriman Anda terlebih dahulu sebelum melakukan pembayaran.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Isi Alamat',
+      cancelButtonText: 'Batal',
+      customClass: {
+        popup: "custom-swal-popup",
+        title: "custom-swal-title",
+        htmlContainer: "custom-swal-html",
+      }
+    }).then((res) => {
+      if (res.isConfirmed) {
+        editAddressPopup(() => {
+          renderCheckoutPage();
+        });
+      }
+    });
+    return;
+  }
+
   isCheckoutSubmitting = true;
   const payBtn = document.querySelector(".pay-btn");
   if (payBtn) {
@@ -2097,11 +2335,17 @@ async function confirmPayment() {
       payBtn.disabled = false;
       payBtn.textContent = "Bayar Sekarang";
     }
-    showPopup({
-      type: "error",
-      title: "Checkout Gagal",
-      message:
-        checkout.data?.error || "Pesanan belum berhasil disimpan ke database.",
+    
+    const isStockError = checkout.data?.error && checkout.data.error.includes("tidak mencukupi");
+    Swal.fire({
+      icon: isStockError ? 'warning' : 'error',
+      title: isStockError ? 'Stok Tidak Mencukupi' : 'Checkout Gagal',
+      text: checkout.data?.error || "Pesanan belum berhasil disimpan ke database.",
+      customClass: {
+        popup: "custom-swal-popup",
+        title: "custom-swal-title",
+        htmlContainer: "custom-swal-html",
+      }
     });
     return;
   }

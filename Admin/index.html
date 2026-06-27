@@ -137,13 +137,14 @@
               <th>Informasi Produk</th>
               <th>Harga Satuan</th>
               <th>Kategori</th>
+              <th>Stok</th>
               <th>SKU ID</th>
               <th>Aksi</th>
             </tr>
           </thead>
           <tbody id="productsTableBody">
             <tr>
-              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 32px;">
+              <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 32px;">
                 Mengambil data produk...
               </td>
             </tr>
@@ -170,10 +171,15 @@
             <input type="text" id="productNama" class="form-control" placeholder="Contoh: Beras Pandan Wangi 5KG" required>
           </div>
           
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
             <div class="form-group">
               <label for="productHarga">Harga (Rp) *</label>
               <input type="number" id="productHarga" class="form-control" placeholder="Contoh: 75000" min="0" required>
+            </div>
+
+            <div class="form-group">
+              <label for="productStok">Stok *</label>
+              <input type="number" id="productStok" class="form-control" placeholder="Contoh: 50" min="0" required>
             </div>
             
             <div class="form-group">

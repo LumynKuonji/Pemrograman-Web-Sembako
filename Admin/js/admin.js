@@ -24,6 +24,7 @@ const inputHarga = document.getElementById("productHarga");
 const inputKategori = document.getElementById("productKategori");
 const inputImg = document.getElementById("productImg");
 const inputDesc = document.getElementById("productDesc");
+const inputStok = document.getElementById("productStok");
 const imgPreview = document.getElementById("imgPreview");
 const previewPlaceholder = document.getElementById("previewPlaceholder");
 
@@ -210,6 +211,11 @@ function renderTable(products) {
       </td>
       <td><span class="price-text">${formatRupiah(p.harga)}</span></td>
       <td><span class="badge-category">${p.kategori}</span></td>
+      <td>
+        <span style="font-weight: 600; color: ${(p.stok || 0) < 10 ? '#ef4444' : '#10b981'};">
+          ${p.stok || 0}
+        </span>
+      </td>
       <td>ID: ${p.id}</td>
       <td>
         <div class="action-buttons">
@@ -249,6 +255,7 @@ function openEditModal(id) {
   inputKategori.value = p.kategori;
   inputImg.value = ""; // Reset file input
   inputDesc.value = p.desc || "";
+  if (inputStok) inputStok.value = p.stok || 0;
   productCroppedBlob = null;
 
   const uploadSubtitle = document.getElementById("uploadSubtitle");
@@ -272,6 +279,7 @@ async function handleFormSubmit(e) {
 
   const nama = inputNama.value.trim();
   const harga = parseInt(inputHarga.value);
+  const stok = inputStok ? (parseInt(inputStok.value) || 0) : 0;
   const kategori = inputKategori.value.trim();
   const desc = inputDesc.value.trim();
 
@@ -283,6 +291,7 @@ async function handleFormSubmit(e) {
   const formData = new FormData();
   formData.append("nama", nama);
   formData.append("harga", harga);
+  formData.append("stok", stok);
   formData.append("kategori", kategori);
   formData.append("desc", desc);
   

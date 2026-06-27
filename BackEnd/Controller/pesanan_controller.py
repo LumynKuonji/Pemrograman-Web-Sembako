@@ -49,6 +49,11 @@ def buat_pesanan_dari_keranjang(user_id, data):
     if not items:
         return None, "Keranjang masih kosong"
 
+    # Periksa ketersediaan stok untuk semua item di keranjang
+    for item in items:
+        if item.qty > item.produk.stok:
+            return None, f"Stok produk '{item.produk.nama}' tidak mencukupi (Tersedia: {item.produk.stok}, Dibeli: {item.qty})"
+
     subtotal = sum(item.subtotal for item in items)
     ongkir = int(data.get("ongkir", 0) or 0)
     total = subtotal + ongkir
@@ -97,6 +102,9 @@ def buat_pesanan_dari_keranjang(user_id, data):
     # Pindahkan item dari keranjang ke pesanan
     items_list_for_email = []
     for item in items:
+        # Kurangi stok produk secara real-time
+        item.produk.stok -= item.qty
+        
         # Collect info for the email receipt
         items_list_for_email.append({
             "produk_id": item.produk_id,

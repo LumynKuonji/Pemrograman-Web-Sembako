@@ -6,7 +6,7 @@ import secrets
 import random
 from datetime import datetime, timedelta
 from werkzeug.security import check_password_hash, generate_password_hash
-from BackEnd.Database.database import User, UserSession, db
+from BackEnd.Database.database import User, UserSession, AlamatPengiriman, db
 from BackEnd.Services import mail_service
 from BackEnd.Services.mail_service import send_security_email
 from BackEnd.logger import get_logger
@@ -466,3 +466,47 @@ def cleanup_unverified_accounts(hours=1):
     db.session.commit()
     log.info(f"Cleanup: Dihapus {count} akun unverified yang lebih dari {hours} jam")
     return count
+
+
+def get_user_address(user_id):
+    """Ambil alamat default user"""
+    addr = AlamatPengiriman.query.filter_by(user_id=user_id, is_default=True).order_by(AlamatPengiriman.id.desc()).first()
+    if not addr:
+        addr = AlamatPengiriman.query.filter_by(user_id=user_id).order_by(AlamatPengiriman.id.desc()).first()
+    return addr
+
+
+def update_user_address(user_id, data):
+    """Update atau create alamat default user"""
+    alamat_lengkap = data.get("alamatLengkap") or data.get("alamat_lengkap") or ""
+    kecamatan = data.get("kecamatan") or ""
+    kota = data.get("kota") or ""
+    kode_pos = data.get("kodePos") or data.get("kode_pos") or ""
+    catatan = data.get("catatan") or ""
+    
+    # Cari alamat default yang ada
+    addr = AlamatPengiriman.query.filter_by(user_id=user_id, is_default=True).order_by(AlamatPengiriman.id.desc()).first()
+    if not addr:
+        addr = AlamatPengiriman.query.filter_by(user_id=user_id).order_by(AlamatPengiriman.id.desc()).first()
+        
+    if addr:
+        addr.alamat_lengkap = alamat_lengkap
+        addr.kecamatan = kecamatan
+        addr.kota = kota
+        addr.kode_pos = kode_pos
+        addr.catatan = catatan
+        addr.is_default = True
+    else:
+        addr = AlamatPengiriman(
+            user_id=user_id,
+            alamat_lengkap=alamat_lengkap,
+            kecamatan=kecamatan,
+            kota=kota,
+            kode_pos=kode_pos,
+            catatan=catatan,
+            is_default=True
+        )
+        db.session.add(addr)
+        
+    db.session.commit()
+    return addr

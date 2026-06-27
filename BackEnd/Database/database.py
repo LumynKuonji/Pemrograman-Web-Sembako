@@ -79,6 +79,7 @@ class Produk(db.Model):
     kategori = db.Column(db.String(50), nullable=False)
     img = db.Column(db.LargeBinary)
     desc = db.Column(db.Text)
+    stok = db.Column(db.Integer, nullable=False, default=0)
 
     def to_dict(self):
         return {
@@ -88,6 +89,7 @@ class Produk(db.Model):
             "kategori": self.kategori,
             "img": f"http://127.0.0.1:5000/api/products/{self.id}/image" if self.img else None,
             "desc": self.desc,
+            "stok": self.stok,
         }
 
 

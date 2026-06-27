@@ -14,19 +14,20 @@ def cari_produk(keyword, kategori):
 def get_produk_by_id(produk_id):
     return Produk.query.get(produk_id)
 
-def tambah_produk(nama, harga, kategori, img=None, desc=None):
+def tambah_produk(nama, harga, kategori, img=None, desc=None, stok=0):
     produk = Produk(
         nama=nama,
         harga=harga,
         kategori=kategori,
         img=img,
-        desc=desc
+        desc=desc,
+        stok=stok
     )
     db.session.add(produk)
     db.session.commit()
     return produk
 
-def edit_produk(produk_id, nama, harga, kategori, img=None, desc=None):
+def edit_produk(produk_id, nama, harga, kategori, img=None, desc=None, stok=None):
     produk = Produk.query.get(produk_id)
     if not produk:
         return None
@@ -37,6 +38,8 @@ def edit_produk(produk_id, nama, harga, kategori, img=None, desc=None):
         produk.img = img
     if desc is not None:
         produk.desc = desc
+    if stok is not None:
+        produk.stok = stok
     db.session.commit()
     return produk
 

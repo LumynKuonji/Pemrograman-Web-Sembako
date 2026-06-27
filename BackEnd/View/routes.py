@@ -307,6 +307,49 @@ def api_update_profile():
     return jsonify({"status": "success", "user": updated.to_dict()})
 
 
+@api_bp.route("/auth/address", methods=["GET", "PUT", "OPTIONS"])
+def api_user_address():
+    """GET /api/auth/address - Dapatkan alamat user
+    PUT /api/auth/address - Simpan/Update alamat user"""
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+    user = _get_user_from_request()
+    if not user:
+        return jsonify({"error": "Belum login"}), 401
+        
+    if request.method == "GET":
+        addr = auth_controller.get_user_address(user.id)
+        if not addr:
+            return jsonify({
+                "alamatLengkap": "",
+                "kecamatan": "",
+                "kota": "",
+                "kodePos": "",
+                "catatan": ""
+            })
+        return jsonify({
+            "alamatLengkap": addr.alamat_lengkap,
+            "kecamatan": addr.kecamatan,
+            "kota": addr.kota,
+            "kodePos": addr.kode_pos,
+            "catatan": addr.catatan
+        })
+        
+    elif request.method == "PUT":
+        data = request.json or {}
+        addr = auth_controller.update_user_address(user.id, data)
+        return jsonify({
+            "status": "success",
+            "address": {
+                "alamatLengkap": addr.alamat_lengkap,
+                "kecamatan": addr.kecamatan,
+                "kota": addr.kota,
+                "kodePos": addr.kode_pos,
+                "catatan": addr.catatan
+            }
+        })
+
+
 @api_bp.route("/auth/change-password", methods=["PUT", "OPTIONS"])
 def api_change_password():
     """PUT /api/auth/change-password - Change password via backend"""
@@ -438,6 +481,7 @@ def api_products_add():
     if request.content_type and "multipart/form-data" in request.content_type:
         nama = request.form.get("nama", "").strip()
         harga = request.form.get("harga")
+        stok = request.form.get("stok", 0)
         kategori = request.form.get("kategori", "").strip()
         desc = request.form.get("desc", "").strip()
         
@@ -448,6 +492,7 @@ def api_products_add():
         data = request.json or {}
         nama = data.get("nama", "").strip()
         harga = data.get("harga")
+        stok = data.get("stok", 0)
         kategori = data.get("kategori", "").strip()
         img_url = data.get("img", "").strip()
         
@@ -455,7 +500,7 @@ def api_products_add():
         img_data = img_url.encode("utf-8") if img_url else None
         desc = data.get("desc", "").strip()
         
-    if not nama or not harga or not kategori:
+    if not nama or harga is None or not kategori:
         return jsonify({"error": "Nama, harga, dan kategori produk wajib diisi"}), 400
         
     try:
@@ -463,10 +508,15 @@ def api_products_add():
     except ValueError:
         return jsonify({"error": "Harga harus berupa angka"}), 400
         
-    produk = produk_controller.tambah_produk(nama, harga_int, kategori, img_data, desc or None)
+    try:
+        stok_int = int(stok)
+    except (ValueError, TypeError):
+        stok_int = 0
+        
+    produk = produk_controller.tambah_produk(nama, harga_int, kategori, img_data, desc or None, stok=stok_int)
     return jsonify({"status": "success", "message": "Produk berhasil ditambahkan", "product": produk.to_dict()}), 201
-
-
+ 
+ 
 @api_bp.route('/products/<int:produk_id>', methods=['PUT', 'OPTIONS'])
 def api_products_edit(produk_id):
     if request.method == "OPTIONS":
@@ -476,6 +526,7 @@ def api_products_edit(produk_id):
     if request.content_type and "multipart/form-data" in request.content_type:
         nama = request.form.get("nama", "").strip()
         harga = request.form.get("harga")
+        stok = request.form.get("stok")
         kategori = request.form.get("kategori", "").strip()
         desc = request.form.get("desc", "").strip()
         
@@ -490,13 +541,14 @@ def api_products_edit(produk_id):
         data = request.json or {}
         nama = data.get("nama", "").strip()
         harga = data.get("harga")
+        stok = data.get("stok")
         kategori = data.get("kategori", "").strip()
         desc = data.get("desc", "").strip()
         
         img_url = data.get("img")
         img_data = img_url.encode("utf-8") if img_url is not None else None
         
-    if not nama or not harga or not kategori:
+    if not nama or harga is None or not kategori:
         return jsonify({"error": "Nama, harga, dan kategori produk wajib diisi"}), 400
         
     try:
@@ -504,7 +556,14 @@ def api_products_edit(produk_id):
     except ValueError:
         return jsonify({"error": "Harga harus berupa angka"}), 400
         
-    produk = produk_controller.edit_produk(produk_id, nama, harga_int, kategori, img_data, desc or None)
+    stok_int = None
+    if stok is not None:
+        try:
+            stok_int = int(stok)
+        except (ValueError, TypeError):
+            return jsonify({"error": "Stok harus berupa angka"}), 400
+        
+    produk = produk_controller.edit_produk(produk_id, nama, harga_int, kategori, img_data, desc or None, stok=stok_int)
     if not produk:
         return jsonify({"error": "Produk tidak ditemukan"}), 404
         
