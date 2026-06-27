@@ -63,7 +63,7 @@ button {
 @media (min-width: 641px) {
   .header-home {
     display: grid;
-    grid-template-columns: 1fr minmax(200px, 800px) 1fr;
+    grid-template-columns: 1fr minmax(200px, 600px) 1fr;
     align-items: center;
     width: 100%;
   }
