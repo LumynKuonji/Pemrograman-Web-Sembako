@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Kelola Produk Sembako</title>
+  
+  <!-- Font Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Auth Gate Check -->
+  <script>
+    (() => {
+      const session = JSON.parse(localStorage.getItem("sembako_admin_session"));
+      if (!session || !session.isAdmin || !session.token) {
+        window.location.href = "../FrontEnd/login.html";
+      }
+    })();
+  </script>
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/admin.css?v=font-fix-1">
+  <!-- Cropper.js for Store Logo Crop -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+</head>
+<body>
+
+  <!-- Sidebar Navigation -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">🛒 Sembako Admin</div>
+    </div>
+    
+    <ul class="sidebar-menu">
+      <li class="menu-item active" id="productsMenuItem">
+        <a href="#" onclick="showAdminView('products'); return false;">
+          <svg style="width:20px;height:20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+          <span>Kelola Produk</span>
+        </a>
+      </li>
+      <li class="menu-item" id="statsMenuItem">
+        <a href="#" onclick="showAdminView('stats'); return false;">
+          <svg style="width:20px;height:20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 15l4-4 3 3 5-7"></path></svg>
+          <span>Statistik Penjualan</span>
+        </a>
+      </li>
+      <li class="menu-item">
+        <a href="../FrontEnd/index.html">
+          <svg style="width:20px;height:20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <span>Lihat Toko User</span>
+        </a>
+      </li>
+    </ul>
+    
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="handleAdminLogout()">
+        <svg style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        <span>Keluar</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+    
+    <!-- Topbar Header -->
+    <div class="topbar">
+      <div class="page-title">
+        <h1 id="pageTitle">Manajemen Produk</h1>
+        <p id="pageSubtitle">Kelola semua barang sembako yang ditawarkan kepada pelanggan.</p>
+      </div>
+      <div class="logo-settings-topbar">
+        <div class="store-logo-wrapper" onclick="document.getElementById('storeLogoInput').click()" title="Klik untuk mengubah logo">
+          <div id="storeLogoPreviewContainer" class="store-logo-preview-container">
+            <img id="storeLogoPreview" src="" alt="Logo Toko" style="display: none;">
+            <div id="storeLogoPlaceholder" class="store-logo-placeholder">LT</div>
+          </div>
+          <div class="store-logo-overlay">
+            <span>Ubah</span>
+          </div>
+        </div>
+        <div class="store-logo-info">
+          <span class="store-logo-label">Logo Toko</span>
+          <span id="storeLogoFilename" class="store-logo-filename">Pilih file logo...</span>
+          <input type="file" id="storeLogoInput" accept="image/*" style="display: none;">
+        </div>
+        <button class="btn-upload-logo" onclick="saveStoreLogo()">
+          <span>Simpan</span>
+        </button>
+      </div>
+    </div>
+
+    <section id="productsView" class="admin-view active">
+      <!-- Metrics Grid -->
+      <section class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-info">
+            <h3>Total Produk</h3>
+            <div id="totalProductsVal" class="value">-</div>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-info">
+            <h3>Jumlah Kategori</h3>
+            <div id="totalCategoriesVal" class="value">-</div>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-info">
+            <h3>Rata-rata Harga</h3>
+            <div id="avgPriceVal" class="value">-</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Product Database Management Card -->
+      <section class="data-card">
+        <div class="card-header">
+          
+          <!-- Search and Filters -->
+          <div class="search-filter-box">
+            <div class="search-input-wrapper">
+              <input type="text" id="searchInput" class="search-input" placeholder="Cari nama produk...">
+            </div>
+            
+            <select id="categoryFilter" class="select-filter">
+              <option value="Semua">Semua Kategori</option>
+            </select>
+          </div>
+          
+          <!-- Action Button -->
+          <button class="btn-primary" onclick="openAddModal()">
+            <span>Tambah Produk</span>
+          </button>
+        </div>
+
+        <!-- Table View -->
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Informasi Produk</th>
+                <th>Harga Satuan</th>
+                <th>Kategori</th>
+                <th>Stok</th>
+                <th>SKU ID</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="productsTableBody">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 32px;">
+                  Mengambil data produk...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <section id="statsView" class="admin-view">
+      <div class="stats-summary-grid">
+        <div class="stat-box">
+          <span class="stat-label">Total Penjualan</span>
+          <div id="salesTotalValue" class="stat-value">-</div>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Keuntungan Estimasi</span>
+          <div id="salesProfitValue" class="stat-value">-</div>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Rata-rata / Minggu</span>
+          <div id="salesAvgValue" class="stat-value">-</div>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Minggu Tertinggi</span>
+          <div id="salesPeakValue" class="stat-value">-</div>
+        </div>
+      </div>
+
+      <section class="data-card stats-card">
+        <div class="card-header">
+          <div>
+            <h2 class="stats-title">Statistik Penjualan Mingguan</h2>
+            <p class="stats-subtitle">Grafik titik dan garis untuk nilai uang tiap minggu.</p>
+          </div>
+        </div>
+
+        <div class="stats-chart-wrapper">
+          <div id="salesChartPlaceholder" class="chart-placeholder">Mengambil data penjualan...</div>
+          <div id="salesChart" class="sales-chart"></div>
+        </div>
+
+        <div class="stats-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Minggu</th>
+                <th>Penjualan</th>
+                <th>Keuntungan</th>
+                <th>Pesanan</th>
+              </tr>
+            </thead>
+            <tbody id="salesStatsTableBody">
+              <tr>
+                <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 24px;">Belum ada data.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <!-- Add / Edit Modal Overlay -->
+  <div id="productModal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 id="modalTitle">Tambah Produk Baru</h2>
+        <span class="btn-close-modal" onclick="closeModal()">&times;</span>
+      </div>
+      
+      <form id="productForm">
+        <div class="modal-body">
+          <input type="hidden" id="productId">
+          
+          <div class="form-group">
+            <label for="productNama">Nama Produk *</label>
+            <input type="text" id="productNama" class="form-control" placeholder="Contoh: Beras Pandan Wangi 5KG" required>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label for="productHarga">Harga (Rp) *</label>
+              <input type="number" id="productHarga" class="form-control" placeholder="Contoh: 75000" min="0" required>
+            </div>
+
+            <div class="form-group">
+              <label for="productStok">Stok *</label>
+              <input type="number" id="productStok" class="form-control" placeholder="Contoh: 50" min="0" required>
+            </div>
+            
+            <div class="form-group">
+              <label for="productKategori">Kategori *</label>
+              <select id="productKategori" class="form-control" required>
+                <option value="">Pilih Kategori</option>
+                <option value="Bahan Pokok">Bahan Pokok</option>
+                <option value="Makanan Instan">Makanan Instan</option>
+                <option value="Bumbu Dapur">Bumbu Dapur</option>
+                <option value="Minuman">Minuman</option>
+                <option value="Snack">Snack</option>
+                <option value="Kebutuhan Mandi">Kebutuhan Mandi</option>
+                <option value="Kebutuhan Cuci">Kebutuhan Cuci</option>
+                <option value="Produk Fresh">Produk Fresh</option>
+                <option value="Produk Segar">Produk Segar</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="productImg">Foto Produk</label>
+            <div class="custom-file-upload" onclick="document.getElementById('productImg').click()">
+              <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              <div class="upload-text">
+                <span class="upload-title">Pilih Berkas Foto Baru</span>
+                <span id="uploadSubtitle" class="upload-subtitle">Klik di sini untuk mengunggah gambar produk</span>
+              </div>
+            </div>
+            <input type="file" id="productImg" accept="image/*" style="display: none;">
+            
+            <div class="image-preview-container">
+              <img id="imgPreview" src="" alt="Pratinjau Gambar" style="display: none;">
+              <span style="color: var(--text-muted); font-size: 13px;" id="previewPlaceholder">Pratinjau gambar akan tampil di sini</span>
+            </div>
+            <div style="display: flex; justify-content: center; width: 100%;">
+              <button type="button" id="btnCropProduct" class="btn-crop-product" style="display: none;" onclick="cropCurrentProductImage()">
+                <svg style="width:14px;height:14px;margin-right:4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"></path><path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"></path></svg>
+                <span>Potong Gambar</span>
+              </button>
+            </div>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="productDesc">Deskripsi Produk</label>
+            <textarea id="productDesc" class="form-control" placeholder="Detail informasi produk, expired date, berat, dll."></textarea>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal()">Batal</button>
+          <button type="submit" class="btn-primary">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Logo Crop Modal Overlay -->
+  <div id="cropModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 480px;">
+      <div class="modal-header">
+        <h2>Potong Logo Toko</h2>
+        <span class="btn-close-modal" onclick="closeCropModal()">&times;</span>
+      </div>
+      <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; background: #f8fafc;">
+        <p style="font-size: 13px; color: var(--text-muted); text-align: center; margin: 0 0 4px 0; line-height: 1.5;">
+          Geser atau sesuaikan area lingkaran di bawah agar gambar logo toko terlihat rapi dan bulat sempurna.
+        </p>
+        <div style="width: 100%; max-height: 320px; min-height: 200px; background-color: #cbd5e1; overflow: hidden; border-radius: var(--radius-sm); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;">
+          <img id="cropImageSource" src="" style="max-width: 100%; display: block;" alt="Gambar logo untuk dipotong">
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 16px 20px; background: #ffffff; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="btn-secondary" onclick="closeCropModal()">Batal</button>
+        <button type="button" class="btn-primary" onclick="applyLogoCrop()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Crop Modal Overlay -->
+  <div id="productCropModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 480px;">
+      <div class="modal-header">
+        <h2>Potong Foto Produk</h2>
+        <span class="btn-close-modal" onclick="closeProductCropModal()">&times;</span>
+      </div>
+      <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; background: #f8fafc;">
+        <p style="font-size: 13px; color: var(--text-muted); text-align: center; margin: 0 0 4px 0; line-height: 1.5;">
+          Geser atau sesuaikan area kotak di bawah agar foto produk sesuai dengan frame kotak (1:1).
+        </p>
+        <div style="width: 100%; max-height: 320px; min-height: 200px; background-color: #cbd5e1; overflow: hidden; border-radius: var(--radius-sm); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;">
+          <img id="productCropImageSource" src="" style="max-width: 100%; display: block;" alt="Foto produk untuk dipotong">
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 16px 20px; background: #ffffff; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="btn-secondary" onclick="closeProductCropModal()">Batal</button>
+        <button type="button" class="btn-primary" onclick="applyProductCrop()">Terapkan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SweetAlert2 (matches project libraries) -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <!-- Cropper.js for Store Logo Crop -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+
+  <!-- JavaScript Controller -->
+  <script src="js/admin.js"></script>
+</body>
+</html>
