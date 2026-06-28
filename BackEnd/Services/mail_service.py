@@ -5,6 +5,9 @@ Semua modul lain harus mengimpor dari sini.
 """
 import os
 import smtplib
+import socket
+import traceback
+import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -93,6 +96,26 @@ def log_email_to_db(to_email, subject, html_content, email_type, status, error_m
         log.error(f"Gagal menyimpan email log ke database: {e}")
 
 
+def _handle_smtp_exception(e, error_msg, recipient, subject, html_content, email_type, server):
+    """Helper untuk logging error SMTP, stack trace, dan menyimpan kegagalan ke DB."""
+    tb_str = traceback.format_exc()
+    log.error("=" * 60)
+    log.error(f"[SMTP ERROR] {error_msg}")
+    log.error("STACK TRACE:")
+    log.error(tb_str)
+    log.error("=" * 60)
+
+    if server:
+        try:
+            log.info("Mencoba menutup koneksi server secara paksa setelah terjadi error...")
+            server.close()
+        except Exception as e_close:
+            log.warning(f"Gagal menutup koneksi server secara paksa: {e_close}")
+
+    log_email_to_db(recipient, subject, html_content, email_type, status="failed", error_message=f"{error_msg}\n\nStacktrace:\n{tb_str}")
+    return False, error_msg
+
+
 def send_email(to_email, subject, html_content, email_type="general"):
     """
     Mengirim email via SMTP atau log ke database jika provider console.
@@ -127,9 +150,24 @@ def send_email(to_email, subject, html_content, email_type="general"):
         log.info(f"[CONSOLE MODE] Email disimulasikan ke {original_recipient} — subject: '{subject}'")
         return True, None
 
-    try:
-        log.info(f"Mengirim email ke {to_email} — subject: '{subject}' — type: {email_type}")
+    # Logging detail sebelum setiap langkah SMTP
+    log.info("=" * 60)
+    log.info("MEMULAI PROSES PENGIRIMAN EMAIL SMTP")
+    log.info(f"  Penerima        : {to_email}")
+    log.info(f"  Subject         : {subject}")
+    log.info(f"  Tipe Email      : {email_type}")
+    log.info(f"  Provider        : {provider}")
+    log.info(f"  SMTP Server     : {config['smtp_server']}")
+    log.info(f"  Port            : {config['smtp_port']}")
+    log.info(f"  TLS Aktif       : {config['use_tls']}")
+    log.info(f"  Username SMTP   : {config['username']}")
+    log.info(f"  Default Sender  : {config['default_sender']}")
+    log.info("=" * 60)
 
+    server = None
+    start_time = time.time()
+
+    try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = config["default_sender"]
@@ -138,45 +176,123 @@ def send_email(to_email, subject, html_content, email_type="general"):
         part = MIMEText(html_content, "html")
         msg.attach(part)
 
-        log.debug(f"Connecting ke SMTP {config['smtp_server']}:{config['smtp_port']} (TLS={config['use_tls']})")
-        server = smtplib.SMTP(config["smtp_server"], config["smtp_port"], timeout=15)
+        # ----------------------------------------------------
+        # 1. LANGKAH: CONNECT()
+        # ----------------------------------------------------
+        connect_start = datetime.now()
+        log.info(f"[{connect_start.isoformat()}] SMTP STEP: Memulai koneksi (connect) ke {config['smtp_server']}:{config['smtp_port']}...")
+        
+        step_connect_start = time.time()
+        # Jika port 465, gunakan SMTP_SSL langsung
+        if config["smtp_port"] == 465:
+            server = smtplib.SMTP_SSL(config["smtp_server"], config["smtp_port"], timeout=30)
+        else:
+            server = smtplib.SMTP(config["smtp_server"], config["smtp_port"], timeout=30)
+        step_connect_end = time.time()
+        
+        connect_end = datetime.now()
+        log.info(f"[{connect_end.isoformat()}] SMTP STEP SUCCESS: Koneksi berhasil. Waktu mulai: {connect_start.isoformat()}, Selesai: {connect_end.isoformat()} (Durasi: {step_connect_end - step_connect_start:.2f}s)")
+
+        # EHLO setelah connect
+        log.info(f"[{datetime.now().isoformat()}] Mengirim EHLO awal...")
         server.ehlo()
-        if config["use_tls"]:
+
+        # ----------------------------------------------------
+        # 2. LANGKAH: STARTTLS()
+        # ----------------------------------------------------
+        if config["use_tls"] and config["smtp_port"] != 465:
+            tls_start = datetime.now()
+            log.info(f"[{tls_start.isoformat()}] SMTP STEP: Memulai starttls()...")
+            
+            step_tls_start = time.time()
             server.starttls()
             server.ehlo()
+            step_tls_end = time.time()
+            
+            tls_end = datetime.now()
+            log.info(f"[{tls_end.isoformat()}] SMTP STEP SUCCESS: STARTTLS berhasil. Waktu mulai: {tls_start.isoformat()}, Selesai: {tls_end.isoformat()} (Durasi: {step_tls_end - step_tls_start:.2f}s)")
+        else:
+            if config["smtp_port"] == 465:
+                log.info("STARTTLS dilewati karena menggunakan koneksi SSL murni (Port 465)")
+            else:
+                log.info("STARTTLS dilewati karena MAIL_USE_TLS = False")
 
-        log.debug(f"Login SMTP sebagai {config['username']}")
+        # ----------------------------------------------------
+        # 3. LANGKAH: LOGIN()
+        # ----------------------------------------------------
+        login_start = datetime.now()
+        log.info(f"[{login_start.isoformat()}] SMTP STEP: Memulai login() sebagai {config['username']}...")
+        
+        step_login_start = time.time()
         server.login(config["username"], config["password"])
+        step_login_end = time.time()
+        
+        login_end = datetime.now()
+        log.info(f"[{login_end.isoformat()}] SMTP STEP SUCCESS: Login berhasil. Waktu mulai: {login_start.isoformat()}, Selesai: {login_end.isoformat()} (Durasi: {step_login_end - step_login_start:.2f}s)")
+
+        # ----------------------------------------------------
+        # 4. LANGKAH: SENDMAIL()
+        # ----------------------------------------------------
+        send_start = datetime.now()
+        log.info(f"[{send_start.isoformat()}] SMTP STEP: Memulai sendmail()...")
+        
+        step_send_start = time.time()
         server.sendmail(config["default_sender"], to_email, msg.as_string())
-        server.quit()
+        step_send_end = time.time()
+        
+        send_end = datetime.now()
+        log.info(f"[{send_end.isoformat()}] SMTP STEP SUCCESS: Pengiriman email berhasil. Waktu mulai: {send_start.isoformat()}, Selesai: {send_end.isoformat()} (Durasi: {step_send_end - step_send_start:.2f}s)")
+
+        # ----------------------------------------------------
+        # 5. LANGKAH: QUIT()
+        # ----------------------------------------------------
+        quit_start = datetime.now()
+        log.info(f"[{quit_start.isoformat()}] SMTP STEP: Memulai quit()...")
+        
+        step_quit_start = time.time()
+        try:
+            server.quit()
+        except Exception as e_quit:
+            log.warning(f"Error minor saat quit: {e_quit}")
+        step_quit_end = time.time()
+        
+        quit_end = datetime.now()
+        log.info(f"[{quit_end.isoformat()}] SMTP STEP SUCCESS: Koneksi ditutup (quit). Waktu mulai: {quit_start.isoformat()}, Selesai: {quit_end.isoformat()} (Durasi: {step_quit_end - step_quit_start:.2f}s)")
+
+        total_duration = time.time() - start_time
+        log.info(f"[SUCCESS] Email BERHASIL dikirim ke {to_email}. Total durasi: {total_duration:.2f}s")
+        log.info("=" * 60)
 
         log_email_to_db(original_recipient, subject, html_content, email_type, status="sent")
-        log.info(f"[SUCCESS] Email BERHASIL dikirim ke {to_email}")
         return True, None
 
-    except smtplib.SMTPAuthenticationError as e:
-        error_msg = f"SMTP Authentication gagal: {e}. Pastikan konfigurasi SMTP Brevo sudah benar."
-        log_email_to_db(original_recipient, subject, html_content, email_type, status="failed", error_message=error_msg)
-        log.error(f"[ERROR] {error_msg}")
-        return False, error_msg
+    except TimeoutError as e:
+        error_msg = f"TimeoutError (Batas waktu koneksi/operasi OS terlampaui): {e}"
+        return _handle_smtp_exception(e, error_msg, original_recipient, subject, html_content, email_type, server)
+
+    except socket.timeout as e:
+        error_msg = f"socket.timeout (Batas waktu operasi socket terlampaui): {e}"
+        return _handle_smtp_exception(e, error_msg, original_recipient, subject, html_content, email_type, server)
+
+    except smtplib.SMTPServerDisconnected as e:
+        error_msg = f"smtplib.SMTPServerDisconnected (Server terputus tiba-tiba): {e}"
+        return _handle_smtp_exception(e, error_msg, original_recipient, subject, html_content, email_type, server)
 
     except smtplib.SMTPConnectError as e:
-        error_msg = f"Gagal connect ke SMTP server {config['smtp_server']}:{config['smtp_port']}: {e}"
-        log_email_to_db(original_recipient, subject, html_content, email_type, status="failed", error_message=error_msg)
-        log.error(f"[ERROR] {error_msg}")
-        return False, error_msg
+        error_msg = f"smtplib.SMTPConnectError (Gagal melakukan koneksi awal): {e}"
+        return _handle_smtp_exception(e, error_msg, original_recipient, subject, html_content, email_type, server)
+
+    except smtplib.SMTPAuthenticationError as e:
+        error_msg = f"smtplib.SMTPAuthenticationError (Kredensial SMTP ditolak oleh provider): {e}"
+        return _handle_smtp_exception(e, error_msg, original_recipient, subject, html_content, email_type, server)
 
     except smtplib.SMTPException as e:
-        error_msg = f"SMTP error: {e}"
-        log_email_to_db(original_recipient, subject, html_content, email_type, status="failed", error_message=error_msg)
-        log.error(f"[ERROR] {error_msg}")
-        return False, error_msg
+        error_msg = f"smtplib.SMTPException (Kesalahan protokol SMTP): {e}"
+        return _handle_smtp_exception(e, error_msg, original_recipient, subject, html_content, email_type, server)
 
     except Exception as e:
-        error_msg = f"Gagal mengirim email: {type(e).__name__}: {e}"
-        log_email_to_db(original_recipient, subject, html_content, email_type, status="failed", error_message=error_msg)
-        log.error(f"[ERROR] {error_msg}")
-        return False, error_msg
+        error_msg = f"Exception umum: {type(e).__name__}: {e}"
+        return _handle_smtp_exception(e, error_msg, original_recipient, subject, html_content, email_type, server)
 
 
 # ============================================
