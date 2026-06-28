@@ -33,7 +33,8 @@ log = get_logger("app")
 
 
 def create_app():
-    app = Flask(__name__)
+    frontend_dir = BACKEND_ROOT.parent / "FrontEnd"
+    app = Flask(__name__, static_folder=str(frontend_dir), static_url_path="")
     db_path = BACKEND_ROOT / "toko_sembako.db"
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path.as_posix()}"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
