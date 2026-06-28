@@ -1,4 +1,4 @@
-const API_BASE = "/api";
+const API_BASE = "https://pemrograman-web-sembako-production.up.railway.app//api";
 
 let productsList = [];
 let editingProductId = null;

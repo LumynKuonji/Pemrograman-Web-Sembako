@@ -46,7 +46,7 @@ const GUEST_PROFILE = {
   foto: DEFAULT_AVATAR,
 };
 
-const API_BASE = "/api";
+const API_BASE = "https://pemrograman-web-sembako-production.up.railway.app//api";
 const API_LABEL = "Server Toko Sembako";
 
 function _buildPopupOverlay(content) {
