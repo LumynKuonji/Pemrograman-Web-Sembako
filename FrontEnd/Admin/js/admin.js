@@ -600,7 +600,7 @@ function handleAdminLogout() {
       localStorage.removeItem("sembako_admin_session");
       localStorage.removeItem("sembako_session");
       localStorage.removeItem("sembako_user");
-      window.location.href = "login.html";
+      window.location.href = "../FrontEnd/login.html";
     }
   });
 }
