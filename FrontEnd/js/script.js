@@ -46,7 +46,7 @@ const GUEST_PROFILE = {
   foto: DEFAULT_AVATAR,
 };
 
-const API_BASE = "http://127.0.0.1:5000/api";
+const API_BASE = "/api";
 const API_LABEL = "Server Toko Sembako";
 
 function _buildPopupOverlay(content) {
