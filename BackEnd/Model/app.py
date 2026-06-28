@@ -117,22 +117,42 @@ def seed_demo_user():
 
 
 def sync_seed_products():
-    if Produk.query.count() == 0:
-        for data in PRODUCT_SEEDS:
-            img_url = data.get("img", "").strip()
-            if not img_url or not img_url.startswith("http"):
-                img_url = Produk.PLACEHOLDER_IMG
-            # Simpan URL sebagai bytes agar kompatibel dengan LargeBinary
-            produk = Produk(
-                id=data["id"],
-                nama=data["nama"],
-                harga=data["harga"],
-                kategori=data["kategori"],
-                img=img_url.encode("utf-8"),
-                desc=data["desc"]
-            )
-            db.session.add(produk)
-        db.session.commit()
+    uploads_dir = BACKEND_ROOT / "uploads" / "products"
+    for data in PRODUCT_SEEDS:
+        # Cek jika produk sudah ada di database, jangan lakukan seeding ulang
+        existing = Produk.query.get(data["id"])
+        if existing:
+            continue
+
+        img_filename = data.get("img", "").strip()
+        img_bytes = None
+        
+        # Baca gambar dari folder lokal
+        if img_filename:
+            img_path = uploads_dir / img_filename
+            if img_path.exists() and img_path.is_file():
+                try:
+                    with open(img_path, "rb") as f:
+                        img_bytes = f.read()
+                except Exception as e:
+                    log.warning(f"Gagal membaca file gambar seed {img_filename} untuk produk {data['nama']}: {e}")
+            else:
+                log.warning(f"File gambar seed tidak ditemukan untuk produk {data['nama']}: {img_filename}")
+
+        # Jika gambar tidak ditemukan atau gagal dibaca, gunakan PLACEHOLDER_IMG
+        if not img_bytes:
+            img_bytes = Produk.PLACEHOLDER_IMG.encode("utf-8")
+
+        produk = Produk(
+            id=data["id"],
+            nama=data["nama"],
+            harga=data["harga"],
+            kategori=data["kategori"],
+            img=img_bytes,
+            desc=data["desc"]
+        )
+        db.session.add(produk)
+    db.session.commit()
 
 
 if __name__ == "__main__":

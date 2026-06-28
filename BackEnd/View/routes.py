@@ -1180,9 +1180,33 @@ def api_upload_logo():
     upload_dir = backend_root / "uploads"
     upload_dir.mkdir(exist_ok=True)
     
-    filename = f"logo_{uuid.uuid4().hex[:8]}.{ext}"
-    file_path = upload_dir / filename
-    file.save(str(file_path))
+    # Baca data biner berkas yang diunggah
+    file_bytes = file.read()
+    
+    # Cari berkas logo yang sudah ada dengan konten biner yang sama
+    matched_filename = None
+    for existing_file in upload_dir.glob("logo_*.*"):
+        if existing_file.is_file():
+            try:
+                with open(existing_file, "rb") as ef:
+                    existing_bytes = ef.read()
+                if existing_bytes == file_bytes:
+                    matched_filename = existing_file.name
+                    break
+            except Exception:
+                pass
+                
+    if matched_filename:
+        filename = matched_filename
+    else:
+        # Generate nama file unik jika tidak ada gambar yang sama
+        filename = f"logo_{uuid.uuid4().hex[:8]}.{ext}"
+        file_path = upload_dir / filename
+        try:
+            with open(file_path, "wb") as f:
+                f.write(file_bytes)
+        except Exception as e:
+            return jsonify({"error": f"Gagal menyimpan file logo: {e}"}), 500
     
     logo_url = f"{request.host_url.rstrip('/')}/api/uploads/{filename}"
     
