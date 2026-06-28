@@ -579,21 +579,23 @@ def api_get_product_image(produk_id):
     img_url = None
     if img_data:
         if isinstance(img_data, str):
-            if img_data.startswith("http"):
+            if img_data.startswith("http") or img_data.startswith("/"):
                 img_url = img_data
-        elif isinstance(img_data, bytes):
+        elif isinstance(img_data, (bytes, bytearray)):
             try:
                 decoded = img_data.decode('utf-8')
-                if decoded.startswith("http"):
+                if decoded.startswith("http") or decoded.startswith("/"):
                     img_url = decoded
             except Exception:
                 pass
     
     if img_url:
+        if img_url.startswith("/"):
+            img_url = request.host_url.rstrip("/") + img_url
         return redirect(img_url)
     
     # Binary image data (upload dari admin) -> serve langsung
-    if img_data and isinstance(img_data, bytes):
+    if img_data and isinstance(img_data, (bytes, bytearray)):
         import io
         mime = "image/jpeg"
         if img_data.startswith(b"\x89PNG"):
