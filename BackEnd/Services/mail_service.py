@@ -68,9 +68,17 @@ def get_mail_config():
         else "Toko Sembako <noreply@tokosembako.com>"
     )
 
+    resend_api_key = file_cfg.get("RESEND_API_KEY") or os.environ.get("RESEND_API_KEY") or ""
+    brevo_api_key = file_cfg.get("BREVO_API_KEY") or os.environ.get("BREVO_API_KEY") or ""
+
     # Auto-detect provider if smtp settings are present
     if provider == "console" and smtp_server and username and password:
         provider = "smtp"
+    elif provider == "console":
+        if resend_api_key:
+            provider = "resend"
+        elif brevo_api_key:
+            provider = "brevo"
 
     return {
         "provider": provider,
@@ -80,6 +88,8 @@ def get_mail_config():
         "username": username,
         "password": password,
         "default_sender": default_sender,
+        "resend_api_key": resend_api_key,
+        "brevo_api_key": brevo_api_key,
     }
 
 
@@ -89,11 +99,16 @@ def log_startup_config():
     log.info("=" * 50)
     log.info("KONFIGURASI EMAIL")
     log.info(f"  Provider    : {config['provider']}")
-    log.info(f"  SMTP Server : {config['smtp_server']}")
-    log.info(f"  SMTP Port   : {config['smtp_port']}")
-    log.info(f"  TLS         : {config['use_tls']}")
-    log.info(f"  Username    : {config['username']}")
-    log.info(f"  Password    : {'***' + config['password'][-4:] if len(config['password']) >= 4 else '(not set)'}")
+    if config["provider"] == "smtp":
+        log.info(f"  SMTP Server : {config['smtp_server']}")
+        log.info(f"  SMTP Port   : {config['smtp_port']}")
+        log.info(f"  TLS         : {config['use_tls']}")
+        log.info(f"  Username    : {config['username']}")
+        log.info(f"  Password    : {'***' + config['password'][-4:] if len(config['password']) >= 4 else '(not set)'}")
+    elif config["provider"] == "resend":
+        log.info(f"  Resend Key  : {'***' + config['resend_api_key'][-4:] if len(config['resend_api_key']) >= 4 else '(not set)'}")
+    elif config["provider"] == "brevo":
+        log.info(f"  Brevo Key   : {'***' + config['brevo_api_key'][-4:] if len(config['brevo_api_key']) >= 4 else '(not set)'}")
     log.info(f"  Sender      : {config['default_sender']}")
 
     mail_env = BACKEND_ROOT / "config_mail.env"
@@ -104,10 +119,14 @@ def log_startup_config():
 
     if config["provider"] == "console":
         log.warning("  MODE: Console — email TIDAK dikirim, hanya di-log ke database")
-    elif not config["smtp_server"] or not config["username"] or not config["password"]:
+    elif config["provider"] == "resend" and not config["resend_api_key"]:
+        log.warning("  MODE: Resend dipilih tapi API Key kosong — email akan di-log saja")
+    elif config["provider"] == "brevo" and not config["brevo_api_key"]:
+        log.warning("  MODE: Brevo dipilih tapi API Key kosong — email akan di-log saja")
+    elif config["provider"] == "smtp" and (not config["smtp_server"] or not config["username"] or not config["password"]):
         log.warning("  MODE: Konfigurasi SMTP belum lengkap — email akan di-log saja")
     else:
-        log.info("  MODE: SMTP aktif — email akan dikirim ke Gmail")
+        log.info(f"  MODE: {config['provider'].upper()} aktif — email akan dikirim")
     log.info("=" * 50)
 
 
@@ -126,6 +145,82 @@ def log_email_to_db(to_email, subject, html_content, email_type, status, error_m
         db.session.commit()
     except Exception as e:
         log.error(f"Gagal menyimpan email log ke database: {e}")
+
+
+def _send_via_resend(api_key, sender, to_email, subject, html_content):
+    import urllib.request
+    import urllib.error
+    import json
+    
+    url = "https://api.resend.com/emails"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+    
+    payload = {
+        "from": sender,
+        "to": [to_email],
+        "subject": subject,
+        "html": html_content
+    }
+    
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as response:
+            res_body = response.read().decode("utf-8")
+            log.info(f"Resend API Response: {res_body}")
+            return True, None
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8")
+        error_msg = f"Resend API HTTPError {e.code}: {err_body}"
+        return False, error_msg
+    except Exception as e:
+        return False, f"Resend connection error: {str(e)}"
+
+
+def _send_via_brevo(api_key, sender, to_email, subject, html_content):
+    import urllib.request
+    import urllib.error
+    import json
+    
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "Content-Type": "application/json",
+        "api-key": api_key
+    }
+    
+    sender_name = "Toko Sembako"
+    sender_email = ""
+    
+    if "<" in sender and ">" in sender:
+        parts = sender.split("<")
+        sender_name = parts[0].strip()
+        sender_email = parts[1].replace(">", "").strip()
+    else:
+        sender_email = sender.strip()
+        
+    payload = {
+        "sender": {"name": sender_name, "email": sender_email},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "htmlContent": html_content
+    }
+    
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as response:
+            res_body = response.read().decode("utf-8")
+            log.info(f"Brevo API Response: {res_body}")
+            return True, None
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8")
+        error_msg = f"Brevo API HTTPError {e.code}: {err_body}"
+        return False, error_msg
+    except Exception as e:
+        return False, f"Brevo connection error: {str(e)}"
 
 
 def send_email(to_email, subject, html_content, email_type="general"):
@@ -151,10 +246,52 @@ def send_email(to_email, subject, html_content, email_type="general"):
         subject = f"[DEV REDIRECT to {original_recipient}] {subject}"
         log.info(f"Email redirect aktif: {original_recipient} → {to_email}")
 
-    if config["provider"] == "console" or not config["smtp_server"] or not config["username"]:
+    provider = config["provider"]
+
+    is_console = provider == "console"
+    is_incomplete_smtp = (provider == "smtp" and (not config["smtp_server"] or not config["username"]))
+    is_unsupported_provider = provider not in ("smtp", "console", "resend", "brevo")
+    
+    if is_console or is_incomplete_smtp or is_unsupported_provider:
         log_email_to_db(original_recipient, subject, html_content, email_type, status="logged")
         log.info(f"[CONSOLE MODE] Email disimulasikan ke {original_recipient} — subject: '{subject}'")
         return True, None
+
+    if provider == "resend":
+        if not config["resend_api_key"]:
+            error_msg = "Resend API Key tidak ditemukan (RESEND_API_KEY)"
+            log_email_to_db(original_recipient, subject, html_content, email_type, status="failed", error_message=error_msg)
+            log.error(f"[ERROR] {error_msg}")
+            return False, error_msg
+        
+        log.info(f"Mengirim email via Resend ke {to_email} — subject: '{subject}'")
+        success, err = _send_via_resend(config["resend_api_key"], config["default_sender"], to_email, subject, html_content)
+        if success:
+            log_email_to_db(to_email, subject, html_content, email_type, status="sent")
+            log.info(f"[SUCCESS] Email via Resend BERHASIL dikirim ke {to_email}")
+            return True, None
+        else:
+            log_email_to_db(to_email, subject, html_content, email_type, status="failed", error_message=err)
+            log.error(f"[ERROR] Gagal mengirim email via Resend: {err}")
+            return False, err
+
+    if provider == "brevo":
+        if not config["brevo_api_key"]:
+            error_msg = "Brevo API Key tidak ditemukan (BREVO_API_KEY)"
+            log_email_to_db(original_recipient, subject, html_content, email_type, status="failed", error_message=error_msg)
+            log.error(f"[ERROR] {error_msg}")
+            return False, error_msg
+        
+        log.info(f"Mengirim email via Brevo ke {to_email} — subject: '{subject}'")
+        success, err = _send_via_brevo(config["brevo_api_key"], config["default_sender"], to_email, subject, html_content)
+        if success:
+            log_email_to_db(to_email, subject, html_content, email_type, status="sent")
+            log.info(f"[SUCCESS] Email via Brevo BERHASIL dikirim ke {to_email}")
+            return True, None
+        else:
+            log_email_to_db(to_email, subject, html_content, email_type, status="failed", error_message=err)
+            log.error(f"[ERROR] Gagal mengirim email via Brevo: {err}")
+            return False, err
 
     try:
         log.info(f"Mengirim email ke {to_email} — subject: '{subject}' — type: {email_type}")
@@ -180,31 +317,31 @@ def send_email(to_email, subject, html_content, email_type="general"):
         server.quit()
 
         log_email_to_db(to_email, subject, html_content, email_type, status="sent")
-        log.info(f"✅ Email BERHASIL dikirim ke {to_email}")
+        log.info(f"[SUCCESS] Email BERHASIL dikirim ke {to_email}")
         return True, None
 
     except smtplib.SMTPAuthenticationError as e:
         error_msg = f"SMTP Authentication gagal: {e}. Pastikan MAIL_USERNAME dan MAIL_PASSWORD (App Password) di config_mail.env sudah benar."
         log_email_to_db(to_email, subject, html_content, email_type, status="failed", error_message=error_msg)
-        log.error(f"❌ {error_msg}")
+        log.error(f"[ERROR] {error_msg}")
         return False, error_msg
 
     except smtplib.SMTPConnectError as e:
         error_msg = f"Gagal connect ke SMTP server {config['smtp_server']}:{config['smtp_port']}: {e}"
         log_email_to_db(to_email, subject, html_content, email_type, status="failed", error_message=error_msg)
-        log.error(f"❌ {error_msg}")
+        log.error(f"[ERROR] {error_msg}")
         return False, error_msg
 
     except smtplib.SMTPException as e:
         error_msg = f"SMTP error: {e}"
         log_email_to_db(to_email, subject, html_content, email_type, status="failed", error_message=error_msg)
-        log.error(f"❌ {error_msg}")
+        log.error(f"[ERROR] {error_msg}")
         return False, error_msg
 
     except Exception as e:
         error_msg = f"Gagal mengirim email: {type(e).__name__}: {e}"
         log_email_to_db(to_email, subject, html_content, email_type, status="failed", error_message=error_msg)
-        log.error(f"❌ {error_msg}")
+        log.error(f"[ERROR] {error_msg}")
         return False, error_msg
 
 
