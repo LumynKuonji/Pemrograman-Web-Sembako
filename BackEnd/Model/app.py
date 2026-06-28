@@ -3,23 +3,33 @@ from dotenv import load_dotenv
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
-# Load .env file dari root proyek, atau jika tidak ada gunakan BackEnd/config_mail.env
+# Load .env file dari root proyek, atau gunakan BackEnd/config_mail.env & config_ai.env
 ENV_PATH = BACKEND_ROOT.parent / ".env"
 MAIL_ENV_PATH = BACKEND_ROOT / "config_mail.env"
+AI_ENV_PATH = BACKEND_ROOT / "config_ai.env"
 
 if ENV_PATH.exists():
     load_dotenv(ENV_PATH)
     print(f"[Config] Root .env dimuat dari {ENV_PATH}")
     if MAIL_ENV_PATH.exists():
-        # override=True agar konfigurasi mail di config_mail.env menimpa .env root
         load_dotenv(MAIL_ENV_PATH, override=True)
         print(f"[Config] Konfigurasi email dimuat dari {MAIL_ENV_PATH} (override=True)")
-elif MAIL_ENV_PATH.exists():
-    load_dotenv(MAIL_ENV_PATH)
-    print(f"[Config] Email config dimuat dari {MAIL_ENV_PATH}")
+    if AI_ENV_PATH.exists():
+        load_dotenv(AI_ENV_PATH, override=True)
+        print(f"[Config] Konfigurasi AI dimuat dari {AI_ENV_PATH} (override=True)")
 else:
-    print(f"[Config Warning] File .env dan config_mail.env tidak ditemukan")
-    print("   Buat file BackEnd/config_mail.env untuk mengaktifkan fitur email")
+    # Fallback jika .env root tidak ada
+    loaded = False
+    if MAIL_ENV_PATH.exists():
+        load_dotenv(MAIL_ENV_PATH)
+        print(f"[Config] Email config dimuat dari {MAIL_ENV_PATH}")
+        loaded = True
+    if AI_ENV_PATH.exists():
+        load_dotenv(AI_ENV_PATH)
+        print(f"[Config] AI config dimuat dari {AI_ENV_PATH}")
+        loaded = True
+    if not loaded:
+        print("[Config Warning] File .env, config_mail.env, dan config_ai.env tidak ditemukan")
 
 from flask import Flask
 from BackEnd.Database.database import Produk, User, TokoSetting, db
@@ -71,6 +81,10 @@ def create_app():
         
         seed_demo_user()
         seed_settings()
+        
+        # Log status AI pada startup
+        from BackEnd.Controller import chatbot_controller
+        chatbot_controller.log_startup_status()
         
         # Cleanup unverified accounts yang lebih dari 1 jam
         from BackEnd.Controller import auth_controller

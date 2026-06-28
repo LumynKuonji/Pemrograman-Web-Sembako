@@ -31,11 +31,11 @@ PROVIDER_DEFAULTS = {
 }
 
 
-def _parse_env_file(path: Path) -> dict:
+def _parse_env_string(content: str) -> dict:
     data = {}
-    if not path.exists():
+    if not content:
         return data
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in content.splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
@@ -44,8 +44,31 @@ def _parse_env_file(path: Path) -> dict:
     return data
 
 
+def _parse_env_file(path: Path) -> dict:
+    data = {}
+    if not path.exists():
+        return data
+    try:
+        return _parse_env_string(path.read_text(encoding="utf-8"))
+    except Exception as e:
+        log.warning(f"Gagal membaca file env di {path}: {e}")
+        return data
+
+
 def _load_file_config() -> dict:
     cfg = _parse_env_file(BACKEND_ROOT / "config_ai.env")
+    
+    # Fallback: jika di Railway, user mungkin memasukkan seluruh isi config_ai.env
+    # sebagai satu variabel lingkungan bernama "config_ai.env" atau "CONFIG_AI_ENV"
+    for env_key in ["config_ai.env", "CONFIG_AI_ENV", "config_ai_env"]:
+        env_val = os.environ.get(env_key)
+        if env_val:
+            parsed = _parse_env_string(env_val)
+            for k, v in parsed.items():
+                if k not in cfg or not cfg[k]:
+                    cfg[k] = v
+            break
+
     legacy = _parse_env_file(BACKEND_ROOT / "config_9router.env")
     for key, value in legacy.items():
         if key not in cfg or not cfg[key]:

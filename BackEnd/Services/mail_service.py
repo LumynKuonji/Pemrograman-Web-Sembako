@@ -17,11 +17,11 @@ log = get_logger("email")
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
 
-def _parse_env_file(path: Path) -> dict:
+def _parse_env_string(content: str) -> dict:
     data = {}
-    if not path.exists():
+    if not content:
         return data
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in content.splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
@@ -30,12 +30,34 @@ def _parse_env_file(path: Path) -> dict:
     return data
 
 
+def _parse_env_file(path: Path) -> dict:
+    data = {}
+    if not path.exists():
+        return data
+    try:
+        return _parse_env_string(path.read_text(encoding="utf-8"))
+    except Exception as e:
+        log.warning(f"Gagal membaca file env di {path}: {e}")
+        return data
+
+
 def get_mail_config():
     """
     Membaca konfigurasi email dari config_mail.env (prioritas)
     lalu fallback ke environment variables (.env root).
     """
     file_cfg = _parse_env_file(BACKEND_ROOT / "config_mail.env")
+    
+    # Fallback: jika di Railway, user mungkin memasukkan seluruh isi config_mail.env
+    # sebagai satu variabel lingkungan bernama "config_mail.env" atau "CONFIG_MAIL_ENV"
+    for env_key in ["config_mail.env", "CONFIG_MAIL_ENV", "config_mail_env"]:
+        env_val = os.environ.get(env_key)
+        if env_val:
+            parsed = _parse_env_string(env_val)
+            for k, v in parsed.items():
+                if k not in file_cfg or not file_cfg[k]:
+                    file_cfg[k] = v
+            break
 
     provider = file_cfg.get("MAIL_PROVIDER") or os.environ.get("MAIL_PROVIDER") or "console"
     smtp_server = (
