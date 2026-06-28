@@ -77,7 +77,7 @@ class Produk(db.Model):
     nama = db.Column(db.String(100), nullable=False)
     harga = db.Column(db.Integer, nullable=False)
     kategori = db.Column(db.String(50), nullable=False)
-    img = db.Column(db.Text)
+    img = db.Column(db.LargeBinary)
     desc = db.Column(db.Text)
     stok = db.Column(db.Integer, nullable=False, default=0)
 
@@ -86,14 +86,18 @@ class Produk(db.Model):
     def to_dict(self):
         img_value = self.PLACEHOLDER_IMG
         if self.img:
-            img_str = self.img
-            if isinstance(img_str, (bytes, bytearray)):
+            if isinstance(self.img, str):
+                if self.img.startswith("http") or self.img.startswith("/"):
+                    img_value = self.img
+            elif isinstance(self.img, (bytes, bytearray)):
                 try:
-                    img_str = img_str.decode("utf-8")
+                    decoded = self.img.decode("utf-8")
+                    if decoded.startswith("http") or decoded.startswith("/"):
+                        img_value = decoded
+                    else:
+                        img_value = f"/api/products/{self.id}/image"
                 except Exception:
-                    img_str = ""
-            if img_str.startswith("http") or img_str.startswith("/"):
-                img_value = img_str
+                    img_value = f"/api/products/{self.id}/image"
 
         return {
             "id": self.id,

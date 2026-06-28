@@ -122,12 +122,13 @@ def sync_seed_products():
             img_url = data.get("img", "").strip()
             if not img_url or not img_url.startswith("http"):
                 img_url = Produk.PLACEHOLDER_IMG
+            # Simpan URL sebagai bytes agar kompatibel dengan LargeBinary
             produk = Produk(
                 id=data["id"],
                 nama=data["nama"],
                 harga=data["harga"],
                 kategori=data["kategori"],
-                img=img_url,
+                img=img_url.encode("utf-8"),
                 desc=data["desc"]
             )
             db.session.add(produk)

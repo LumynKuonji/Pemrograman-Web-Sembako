@@ -575,6 +575,7 @@ def api_get_product_image(produk_id):
     produk = Produk.query.get_or_404(produk_id)
     img_data = produk.img
     
+    # Cek apakah ini URL (disimpan sebagai bytes text)
     img_url = None
     if img_data:
         if isinstance(img_data, str):
@@ -591,6 +592,19 @@ def api_get_product_image(produk_id):
     if img_url:
         return redirect(img_url)
     
+    # Binary image data (upload dari admin) -> serve langsung
+    if img_data and isinstance(img_data, bytes):
+        import io
+        mime = "image/jpeg"
+        if img_data.startswith(b"\x89PNG"):
+            mime = "image/png"
+        elif img_data.startswith(b"GIF8"):
+            mime = "image/gif"
+        elif img_data.startswith(b"RIFF") and b"WEBP" in img_data[:12]:
+            mime = "image/webp"
+        return send_file(io.BytesIO(img_data), mimetype=mime)
+    
+    # Fallback ke placeholder
     return redirect(Produk.PLACEHOLDER_IMG)
 
 
