@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -10,17 +11,19 @@ from BackEnd.Model.app import create_app
 
 if __name__ == "__main__":
     app = create_app()
-    print("Server berjalan di http://localhost:5000")
-    print("API Produk:     http://localhost:5000/api/products")
-    print("API Keranjang:  http://localhost:5000/api/cart")
-    print("API MBA:        http://localhost:5000/api/recommendations?cart_ids=1")
-    print("API Register:   POST http://localhost:5000/api/auth/register")
-    print("API Login:      POST http://localhost:5000/api/auth/login")
-    print("API Chatbot:    POST http://localhost:5000/api/chat")
+    port = int(os.getenv('PORT', 5000))
+    debug = os.getenv('FLASK_DEBUG', 'False') == 'True'
+    print(f"Server berjalan di http://0.0.0.0:{port}")
+    print(f"API Produk:     http://0.0.0.0:{port}/api/products")
+    print(f"API Keranjang:  http://0.0.0.0:{port}/api/cart")
+    print(f"API MBA:        http://0.0.0.0:{port}/api/recommendations?cart_ids=1")
+    print(f"API Register:   POST http://0.0.0.0:{port}/api/auth/register")
+    print(f"API Login:      POST http://0.0.0.0:{port}/api/auth/login")
+    print(f"API Chatbot:    POST http://0.0.0.0:{port}/api/chat")
     if chatbot_controller.is_configured():
         provider, url, _, model = chatbot_controller.get_ai_config()
         print(f"Chatbot AI:     {provider} [Ready]  model={model}")
         print(f"                {url}")
     else:
         print("Chatbot AI:     isi BackEnd/config_ai.env (NVIDIA NIM / OpenRouter / 9Router)")
-    app.run(debug=True, use_reloader=True)
+    app.run(host='0.0.0.0', port=port, debug=debug, use_reloader=debug)
