@@ -69,37 +69,6 @@ def create_app():
 
         sync_seed_products()
         
-        # Migrasi produk: Konversi gambar URL ke Binary jika ada
-        try:
-            all_products = Produk.query.all()
-            migrated = False
-            for p in all_products:
-                if p.img:
-                    is_url = False
-                    url_str = ""
-                    if isinstance(p.img, str) and p.img.startswith("http"):
-                        is_url = True
-                        url_str = p.img
-                    elif isinstance(p.img, bytes):
-                        try:
-                            decoded = p.img.decode('utf-8')
-                            if decoded.startswith("http"):
-                                is_url = True
-                                url_str = decoded
-                        except Exception:
-                            pass
-                    
-                    if is_url:
-                        log.info(f"Mengonversi gambar produk ID {p.id} ({p.nama}) dari URL ke Binary...")
-                        img_data = get_image_binary(url_str)
-                        p.img = img_data
-                        migrated = True
-            if migrated:
-                db.session.commit()
-                log.info("Semua gambar produk berhasil dimigrasi ke format Binary (BLOB)!")
-        except Exception as e:
-            log.warning(f"Gagal memigrasi gambar produk ke binary: {e}")
-
         seed_demo_user()
         seed_settings()
         
@@ -147,34 +116,18 @@ def seed_demo_user():
     db.session.commit()
 
 
-def get_image_binary(url):
-    placeholder = b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x01D\x00;'
-    if not url or not url.startswith("http"):
-        return placeholder
-    try:
-        import urllib.request
-        log.info(f"Downloading seed image: {url}")
-        req = urllib.request.Request(
-            url, 
-            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-        )
-        with urllib.request.urlopen(req, timeout=3) as response:
-            return response.read()
-    except Exception as e:
-        log.warning(f"Gagal mendownload gambar seed {url}: {e}")
-        return placeholder
-
-
 def sync_seed_products():
     if Produk.query.count() == 0:
         for data in PRODUCT_SEEDS:
-            img_data = get_image_binary(data["img"])
+            img_url = data.get("img", "").strip()
+            if not img_url or not img_url.startswith("http"):
+                img_url = Produk.PLACEHOLDER_IMG
             produk = Produk(
                 id=data["id"],
                 nama=data["nama"],
                 harga=data["harga"],
                 kategori=data["kategori"],
-                img=img_data,
+                img=img_url,
                 desc=data["desc"]
             )
             db.session.add(produk)

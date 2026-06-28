@@ -4,7 +4,7 @@ Termasuk endpoint baru untuk email service, OTP, forgot password, invoice, dll.
 """
 import os
 from datetime import datetime
-from flask import Blueprint, jsonify, request, send_file
+from flask import Blueprint, jsonify, request, send_file, redirect
 from BackEnd.Controller import (
     auth_controller,
     chatbot_controller,
@@ -575,41 +575,23 @@ def api_get_product_image(produk_id):
     produk = Produk.query.get_or_404(produk_id)
     img_data = produk.img
     
-    placeholder = b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x01D\x00;'
+    img_url = None
+    if img_data:
+        if isinstance(img_data, str):
+            if img_data.startswith("http"):
+                img_url = img_data
+        elif isinstance(img_data, bytes):
+            try:
+                decoded = img_data.decode('utf-8')
+                if decoded.startswith("http"):
+                    img_url = decoded
+            except Exception:
+                pass
     
-    if not img_data:
-        import io
-        return send_file(io.BytesIO(placeholder), mimetype="image/gif")
-        
-    is_url = False
-    url_str = ""
-    if isinstance(img_data, str):
-        if img_data.startswith("http"):
-            is_url = True
-            url_str = img_data
-    elif isinstance(img_data, bytes):
-        try:
-            decoded = img_data.decode('utf-8')
-            if decoded.startswith("http"):
-                is_url = True
-                url_str = decoded
-        except Exception:
-            pass
-            
-    if is_url:
-        from flask import redirect
-        return redirect(url_str)
-        
-    import io
-    mime = "image/jpeg"
-    if img_data.startswith(b"\x89PNG"):
-        mime = "image/png"
-    elif img_data.startswith(b"GIF8"):
-        mime = "image/gif"
-    elif img_data.startswith(b"RIFF") and b"WEBP" in img_data[:12]:
-        mime = "image/webp"
-        
-    return send_file(io.BytesIO(img_data), mimetype=mime)
+    if img_url:
+        return redirect(img_url)
+    
+    return redirect(Produk.PLACEHOLDER_IMG)
 
 
 @api_bp.route('/products/<int:produk_id>', methods=['DELETE', 'OPTIONS'])

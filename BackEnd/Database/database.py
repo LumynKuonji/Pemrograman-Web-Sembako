@@ -77,17 +77,30 @@ class Produk(db.Model):
     nama = db.Column(db.String(100), nullable=False)
     harga = db.Column(db.Integer, nullable=False)
     kategori = db.Column(db.String(50), nullable=False)
-    img = db.Column(db.LargeBinary)
+    img = db.Column(db.Text)
     desc = db.Column(db.Text)
     stok = db.Column(db.Integer, nullable=False, default=0)
 
+    PLACEHOLDER_IMG = "https://placehold.co/450x350/EEE/31343C?text=Produk+Tidak+Tersedia"
+
     def to_dict(self):
+        img_value = self.PLACEHOLDER_IMG
+        if self.img:
+            img_str = self.img
+            if isinstance(img_str, (bytes, bytearray)):
+                try:
+                    img_str = img_str.decode("utf-8")
+                except Exception:
+                    img_str = ""
+            if img_str.startswith("http") or img_str.startswith("/"):
+                img_value = img_str
+
         return {
             "id": self.id,
             "nama": self.nama,
             "harga": self.harga,
             "kategori": self.kategori,
-            "img": f"http://127.0.0.1:5000/api/products/{self.id}/image" if self.img else None,
+            "img": img_value,
             "desc": self.desc,
             "stok": self.stok,
         }
