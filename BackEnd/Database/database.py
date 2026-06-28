@@ -84,6 +84,7 @@ class Produk(db.Model):
     PLACEHOLDER_IMG = "https://placehold.co/450x350/EEE/31343C?text=Produk+Tidak+Tersedia"
 
     def to_dict(self):
+        from flask import request
         img_value = self.PLACEHOLDER_IMG
         if self.img:
             if isinstance(self.img, str):
@@ -98,6 +99,12 @@ class Produk(db.Model):
                         img_value = f"/api/products/{self.id}/image"
                 except Exception:
                     img_value = f"/api/products/{self.id}/image"
+
+        if img_value and img_value.startswith("/"):
+            try:
+                img_value = request.host_url.rstrip("/") + img_value
+            except RuntimeError:
+                pass
 
         return {
             "id": self.id,

@@ -1,4 +1,12 @@
-const API_BASE = "https://pemrograman-web-sembako-production.up.railway.app//api";
+const API_BASE = "https://pemrograman-web-sembako-production.up.railway.app/api";
+const API_ROOT = API_BASE.replace(/\/api$/, "");
+
+function resolveImgUrl(img) {
+  if (!img) return "";
+  if (img.startsWith("http://") || img.startsWith("https://") || img.startsWith("data:")) return img;
+  if (img.startsWith("/")) return API_ROOT + img;
+  return API_ROOT + "/" + img;
+}
 
 let productsList = [];
 let editingProductId = null;
@@ -361,7 +369,7 @@ function renderTable(products) {
     tr.innerHTML = `
       <td>
         <div class="product-cell">
-          <img class="product-img" src="${p.img || 'https://via.placeholder.com/150?text=Sembako'}" alt="${p.nama}" onerror="this.src='https://via.placeholder.com/150?text=Sembako'">
+          <img class="product-img" src="${resolveImgUrl(p.img || 'https://via.placeholder.com/150?text=Sembako')}" alt="${p.nama}" onerror="this.src='https://via.placeholder.com/150?text=Sembako'">
           <div class="product-details">
             <div class="name">${p.nama}</div>
             <div class="desc">${p.desc || 'Tidak ada deskripsi'}</div>

@@ -46,7 +46,15 @@ const GUEST_PROFILE = {
   foto: DEFAULT_AVATAR,
 };
 
-const API_BASE = "https://pemrograman-web-sembako-production.up.railway.app//api";
+const API_BASE = "https://pemrograman-web-sembako-production.up.railway.app/api";
+const API_ROOT = API_BASE.replace(/\/api$/, "");
+
+function resolveImgUrl(img) {
+  if (!img) return "";
+  if (img.startsWith("http://") || img.startsWith("https://") || img.startsWith("data:")) return img;
+  if (img.startsWith("/")) return API_ROOT + img;
+  return API_ROOT + "/" + img;
+}
 const API_LABEL = "Server Toko Sembako";
 
 function _buildPopupOverlay(content) {
@@ -1015,7 +1023,7 @@ function renderCartRecommendations() {
                   .map(
                     (p) => `
                     <div class="reco-card">
-                        ${p.img ? `<img src="${p.img}" alt="${p.nama}" onclick="goDetail(${p.id})" style="cursor: pointer;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
+                        ${p.img ? `<img src="${resolveImgUrl(p.img)}" alt="${p.nama}" onclick="goDetail(${p.id})" style="cursor: pointer;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
                         <div class="card-img-placeholder" onclick="goDetail(${p.id})" style="cursor: pointer; border-bottom: none; ${p.img ? 'display: none;' : ''}">
                             <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" class="placeholder-icon">
                                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -1199,7 +1207,7 @@ function renderProducts(list) {
     .map(
       (p) => `
         <div class="card" onclick="goDetail(${p.id})">
-            ${p.img ? `<img src="${p.img}" alt="${p.nama}" class="card-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
+            ${p.img ? `<img src="${resolveImgUrl(p.img)}" alt="${p.nama}" class="card-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
             <div class="card-img-placeholder" style="${p.img ? 'display: none;' : ''}">
                 <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" class="placeholder-icon">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -1258,7 +1266,7 @@ function renderCartPage() {
         const isNearLimit = item.qty >= stokTersedia;
         return `
         <div class="cart-item">
-            ${item.img ? `<img src="${item.img}" alt="${item.nama}" style="width: 70px; height: 70px; border-radius: 8px; object-fit: cover; flex-shrink: 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
+            ${item.img ? `<img src="${resolveImgUrl(item.img)}" alt="${item.nama}" style="width: 70px; height: 70px; border-radius: 8px; object-fit: cover; flex-shrink: 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
             <div class="card-img-placeholder" style="width: 70px; height: 70px; border-radius: 8px; border-bottom: none; flex-shrink: 0; ${item.img ? 'display: none;' : ''}">
                 <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" class="placeholder-icon" style="width: 20px; height: 20px;">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -1322,7 +1330,7 @@ function renderDetailPage() {
   container.innerHTML = `
         <div class="detail-grid">
             <div class="detail-image">
-                ${product.img ? `<img src="${product.img}" alt="${product.nama}" style="border-radius: 12px; height: 100%; min-height: 300px; width: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
+                ${product.img ? `<img src="${resolveImgUrl(product.img)}" alt="${product.nama}" style="border-radius: 12px; height: 100%; min-height: 300px; width: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
                 <div class="card-img-placeholder" style="border-radius: 12px; height: 100%; min-height: 300px; border-bottom: none; ${product.img ? 'display: none;' : ''}">
                     <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" class="placeholder-icon" style="width: 48px; height: 48px;">
                         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -2206,7 +2214,7 @@ function renderCheckoutPage() {
     .map(
       (item) => `
         <div class="order-item" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f1f5f9;">
-            ${item.img ? `<img src="${item.img}" alt="${item.nama}" style="width: 40px; height: 40px; border-radius: 6px; border: 1px solid #e2e8f0; object-fit: cover; flex-shrink: 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
+            ${item.img ? `<img src="${resolveImgUrl(item.img)}" alt="${item.nama}" style="width: 40px; height: 40px; border-radius: 6px; border: 1px solid #e2e8f0; object-fit: cover; flex-shrink: 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
             <div class="order-item-img-placeholder" style="${item.img ? 'display: none;' : ''}">
                 <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" class="placeholder-icon">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
