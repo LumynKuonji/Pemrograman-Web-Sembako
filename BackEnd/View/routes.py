@@ -4,7 +4,7 @@ Termasuk endpoint baru untuk email service, OTP, forgot password, invoice, dll.
 """
 import os
 from datetime import datetime
-from flask import Blueprint, jsonify, request, send_file, send_from_directory
+from flask import Blueprint, jsonify, request, send_file
 from BackEnd.Controller import (
     auth_controller,
     chatbot_controller,
@@ -1275,10 +1275,6 @@ def api_email_log_detail(log_id):
 
 def register_routes(app):
     app.register_blueprint(api_bp)
-
-    @app.route("/")
-    def serve_index():
-        return send_from_directory(app.static_folder, "index.html")
 
     @app.after_request
     def add_cors_headers(response):
