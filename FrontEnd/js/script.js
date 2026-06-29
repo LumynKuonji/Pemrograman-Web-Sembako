@@ -2577,3 +2577,24 @@ async function loadStoreLogo() {
     console.error("Gagal memuat logo toko:", error);
   }
 }
+
+function togglePasswordVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  
+  const eyeOpen = btn.querySelector('.eye-open');
+  const eyeClosed = btn.querySelector('.eye-closed');
+  
+  if (input.type === "password") {
+    input.type = "text";
+    if (eyeOpen) eyeOpen.style.display = "none";
+    if (eyeClosed) eyeClosed.style.display = "block";
+    btn.setAttribute("aria-label", "Sembunyikan password");
+  } else {
+    input.type = "password";
+    if (eyeOpen) eyeOpen.style.display = "block";
+    if (eyeClosed) eyeClosed.style.display = "none";
+    btn.setAttribute("aria-label", "Tampilkan password");
+  }
+}
+
