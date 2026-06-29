@@ -43,7 +43,7 @@ def get_isi_keranjang(user_id=None):
             'id': item.produk.id,
             'nama': item.produk.nama,
             'harga': item.produk.harga,
-            'img': item.produk.img,
+            'img': item.produk.to_dict()['img'],
             'qty': item.qty,
             'subtotal': subtotal
         })
