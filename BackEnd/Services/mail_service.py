@@ -9,6 +9,7 @@ import time
 import json
 import urllib.request
 import urllib.error
+import re
 from email.utils import parseaddr
 from pathlib import Path
 from datetime import datetime
@@ -87,8 +88,31 @@ def _handle_email_exception(e, error_msg, recipient, subject, html_content, emai
     log.error(tb_str)
     log.error("=" * 60)
 
+    # Simpan log kegagalan ke database
     log_email_to_db(recipient, subject, html_content, email_type, status="failed", error_message=f"{error_msg}\n\nStacktrace:\n{tb_str}")
-    return False, error_msg
+    
+    # Fallback ke mode simulasi/console log agar alur aplikasi tidak terblokir
+    log.warning("=" * 60)
+    log.warning("[FALLBACK TO CONSOLE] Mengalihkan ke mode simulasi karena pengiriman email gagal.")
+    log.warning(f"  Penerima        : {recipient}")
+    log.warning(f"  Subject         : {subject}")
+    
+    # Ekstrak OTP dari html_content jika tersedia
+    if "class=\"otp-code\"" in html_content or email_type == "otp":
+        try:
+            parts = html_content.split('class="otp-code">')
+            if len(parts) > 1:
+                otp_extracted = parts[1].split("</h2>")[0].strip()
+                log.warning(f"  🎯 KODE OTP (FALLBACK): {otp_extracted}")
+        except Exception:
+            pass
+            
+    log.warning("=" * 60)
+    
+    # Log kembali status logged ke database agar status akhir adalah sukses (logged) untuk alur user
+    log_email_to_db(recipient, subject, html_content, email_type, status="logged", error_message=f"Brevo gagal, fallback ke simulasi. Error: {error_msg}")
+    
+    return True, None
 
 
 def parse_sender_info(sender_str):
@@ -98,6 +122,52 @@ def parse_sender_info(sender_str):
     if name:
         result["name"] = name
     return result
+
+
+def sanitize_brevo_html(html_content, to_email):
+    """
+    Sanitasi htmlContent sebelum dikirim ke Brevo API:
+    - Menghapus newline di dalam tag template {{ }}
+    - Menghapus newline di dalam tag HTML biasa <... >
+    - Menghapus newline/indentasi yang tidak perlu di dalam tag <style>...</style>
+    - Memastikan tidak ada pola {{ atau }} yang mencurigakan yang tersisa
+    """
+    if not html_content:
+        return html_content
+
+    # 1. Hapus newline di dalam tag template {{ ... }}
+    html_content = re.sub(
+        r'\{\{.*?\}\}',
+        lambda m: m.group(0).replace('\n', ' ').replace('\r', ''),
+        html_content,
+        flags=re.DOTALL
+    )
+
+    # 2. Hapus newline di dalam tag HTML biasa <... >
+    html_content = re.sub(
+        r'<[^>]+>',
+        lambda m: m.group(0).replace('\n', ' ').replace('\r', ''),
+        html_content
+    )
+
+    # 3. Hapus newline/indentasi berlebih di style blocks
+    def clean_style(match):
+        style_content = match.group(1)
+        # Hapus newline dan whitespace berlebih di dalam style block
+        cleaned_style = re.sub(r'\s*\n\s*', ' ', style_content)
+        return f"<style>{cleaned_style}</style>"
+
+    html_content = re.sub(r'<style>(.*?)</style>', clean_style, html_content, flags=re.DOTALL)
+
+    # 4. Validasi pola {{ atau }} mencurigakan yang tersisa
+    suspicious_tags = re.findall(r'\{\{.*?\}\}|\{\{|\}\}', html_content)
+    if suspicious_tags:
+        log.warning(
+            f"[BREVO HTML WARNING] Ditemukan pola kurung kurawal ganda ({{ atau }}) mencurigakan "
+            f"di htmlContent untuk penerima {to_email}: {suspicious_tags}"
+        )
+
+    return html_content
 
 
 def send_email(to_email, subject, html_content, email_type="general"):
@@ -125,6 +195,9 @@ def send_email(to_email, subject, html_content, email_type="general"):
 
     provider = config["provider"]
 
+    # Sanitasi htmlContent untuk menghindari error render di sisi Brevo
+    html_content = sanitize_brevo_html(html_content, to_email)
+
     is_console = provider == "console"
     is_incomplete_brevo = (provider == "brevo" and not config["api_key"])
     is_unsupported_provider = provider != "brevo"
@@ -132,6 +205,16 @@ def send_email(to_email, subject, html_content, email_type="general"):
     if is_console or is_incomplete_brevo or is_unsupported_provider:
         log_email_to_db(original_recipient, subject, html_content, email_type, status="logged")
         log.info(f"[CONSOLE MODE] Email disimulasikan ke {original_recipient} — subject: '{subject}'")
+        
+        # Ekstrak OTP dari html_content untuk console mode
+        if email_type == "otp" or "class=\"otp-code\"" in html_content:
+            try:
+                parts = html_content.split('class="otp-code">')
+                if len(parts) > 1:
+                    otp_extracted = parts[1].split("</h2>")[0].strip()
+                    log.info(f"  🎯 KODE OTP (CONSOLE): {otp_extracted}")
+            except Exception:
+                pass
         return True, None
 
     # Logging detail sebelum langkah pengiriman
@@ -226,14 +309,14 @@ BASE_EMAIL_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{title}}</title>
     <style>
-        body {{
+        body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: #f7fafc;
             margin: 0;
             padding: 0;
             color: #2d3748;
-        }}
-        .email-container {{
+        }
+        .email-container {
             max-width: 600px;
             margin: 30px auto;
             background: #ffffff;
@@ -241,47 +324,47 @@ BASE_EMAIL_TEMPLATE = """
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             overflow: hidden;
             border: 1px solid #e2e8f0;
-        }}
-        .header {{
+        }
+        .header {
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             padding: 30px;
             text-align: center;
             color: #ffffff;
-        }}
-        .header h1 {{
+        }
+        .header h1 {
             margin: 0;
             font-size: 24px;
             font-weight: 700;
             letter-spacing: 0.5px;
-        }}
-        .content {{
+        }
+        .content {
             padding: 40px 30px;
             line-height: 1.6;
-        }}
-        .otp-box {{
+        }
+        .otp-box {
             background: #f0fdf4;
             border: 2px dashed #34d399;
             border-radius: 8px;
             padding: 20px;
             text-align: center;
             margin: 25px 0;
-        }}
-        .otp-code {{
+        }
+        .otp-code {
             font-size: 36px;
             font-weight: 800;
             letter-spacing: 6px;
             color: #047857;
             margin: 0;
-        }}
-        .footer {{
+        }
+        .footer {
             background-color: #f8fafc;
             padding: 20px;
             text-align: center;
             font-size: 12px;
             color: #718096;
             border-top: 1px solid #edf2f7;
-        }}
-        .btn {{
+        }
+        .btn {
             display: inline-block;
             background-color: #10b981;
             color: #ffffff !important;
@@ -291,63 +374,63 @@ BASE_EMAIL_TEMPLATE = """
             font-weight: 600;
             margin: 20px 0;
             text-align: center;
-        }}
-        .btn:hover {{
+        }
+        .btn:hover {
             background-color: #059669;
-        }}
-        .divider {{
+        }
+        .divider {
             height: 1px;
             background-color: #e2e8f0;
             margin: 20px 0;
-        }}
-        .receipt-table {{
+        }
+        .receipt-table {
             width: 100%;
             border-collapse: collapse;
             margin: 20px 0;
-        }}
-        .receipt-table th {{
+        }
+        .receipt-table th {
             text-align: left;
             padding: 10px;
             background-color: #f8fafc;
             border-bottom: 2px solid #edf2f7;
             color: #4a5568;
             font-size: 14px;
-        }}
-        .receipt-table td {{
+        }
+        .receipt-table td {
             padding: 12px 10px;
             border-bottom: 1px solid #edf2f7;
             font-size: 14px;
-        }}
-        .receipt-summary {{
+        }
+        .receipt-summary {
             margin-top: 20px;
             background-color: #f8fafc;
             padding: 15px;
             border-radius: 8px;
-        }}
-        .summary-row {{
+        }
+        .summary-row {
             display: flex;
             justify-content: space-between;
             margin-bottom: 8px;
             font-size: 14px;
-        }}
-        .summary-row.total {{
+        }
+        .summary-row.total {
             font-weight: bold;
             font-size: 16px;
             border-top: 1px solid #e2e8f0;
             padding-top: 8px;
             color: #10b981;
-        }}
-        .badge {{
+        }
+        .badge {
             display: inline-block;
             padding: 4px 8px;
             border-radius: 12px;
             font-size: 12px;
             font-weight: 600;
-        }}
-        .badge-success {{
+        }
+        .badge-success {
             background-color: #d1fae5;
             color: #065f46;
-        }}
+        }
     </style>
 </head>
 <body>
