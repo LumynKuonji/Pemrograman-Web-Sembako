@@ -1,15 +1,15 @@
 """
 Mail Service untuk Toko Sembako AI
-Satu-satunya service pengirim email — menggunakan smtplib langsung.
+Satu-satunya service pengirim email — menggunakan Brevo HTTP API.
 Semua modul lain harus mengimpor dari sini.
 """
 import os
-import smtplib
-import socket
 import traceback
 import time
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import json
+import urllib.request
+import urllib.error
+from email.utils import parseaddr
 from pathlib import Path
 from datetime import datetime
 from BackEnd.Database.database import EmailLog, db
@@ -25,33 +25,15 @@ def get_mail_config():
     Membaca konfigurasi email langsung dari environment variables Railway.
     """
     provider = os.getenv("MAIL_PROVIDER", "console").strip().lower()
-    smtp_server = os.getenv("MAIL_SMTP_SERVER", "").strip()
-    smtp_port = os.getenv("MAIL_SMTP_PORT", "587").strip()
-    use_tls = os.getenv("MAIL_USE_TLS", "True").strip()
-    username = os.getenv("MAIL_USERNAME", "").strip()
-    password = os.getenv("MAIL_PASSWORD", "").strip()
-
-    if password:
-        password = password.replace(" ", "")
-
+    api_key = os.getenv("BREVO_API_KEY", "").strip()
     default_sender = os.getenv("MAIL_DEFAULT_SENDER", "").strip()
-    if not default_sender:
-        if username:
-            default_sender = f"Toko Sembako <{username}>"
-        else:
-            default_sender = "Toko Sembako <noreply@tokosembako.com>"
 
-    # Auto-detect provider jika parameter SMTP lengkap
-    if provider == "console" and smtp_server and username and password:
-        provider = "smtp"
+    if not default_sender:
+        default_sender = "Toko Sembako <noreply@tokosembako.com>"
 
     return {
         "provider": provider,
-        "smtp_server": smtp_server,
-        "smtp_port": int(smtp_port) if smtp_port.isdigit() else 587,
-        "use_tls": use_tls.lower() in ("true", "1", "yes"),
-        "username": username,
-        "password": password,
+        "api_key": api_key,
         "default_sender": default_sender,
     }
 
@@ -62,20 +44,20 @@ def log_startup_config():
     log.info("=" * 50)
     log.info("KONFIGURASI EMAIL")
     log.info(f"  Provider    : {config['provider']}")
-    if config["provider"] == "smtp":
-        log.info(f"  SMTP Server : {config['smtp_server']}")
-        log.info(f"  SMTP Port   : {config['smtp_port']}")
-        log.info(f"  TLS         : {config['use_tls']}")
-        log.info(f"  Username    : {config['username']}")
-        log.info(f"  Password    : {'***' + config['password'][-4:] if len(config['password']) >= 4 else '(not set)'}")
     log.info(f"  Sender      : {config['default_sender']}")
+    
+    # Menampilkan API Key Loaded (Yes/No) tanpa menampilkan API Key secara utuh
+    has_api_key = "Yes" if config["api_key"] else "No"
+    log.info(f"  API Key Loaded (Yes/No): {has_api_key}")
 
     if config["provider"] == "console":
         log.warning("  MODE: Console — email TIDAK dikirim, hanya di-log ke database")
-    elif config["provider"] == "smtp" and (not config["smtp_server"] or not config["username"] or not config["password"]):
-        log.warning("  MODE: Konfigurasi SMTP belum lengkap — email akan di-log saja")
+    elif config["provider"] == "brevo" and not config["api_key"]:
+        log.warning("  MODE: Brevo aktif tetapi BREVO_API_KEY kosong — email akan di-log saja")
+    elif config["provider"] == "brevo":
+        log.info("  MODE: Brevo HTTP API aktif — email akan dikirim")
     else:
-        log.info("  MODE: SMTP aktif — email akan dikirim")
+        log.warning(f"  MODE: Provider '{config['provider']}' tidak dikenali — fallback ke console mode (di-log saja)")
     log.info("=" * 50)
 
 
@@ -96,29 +78,31 @@ def log_email_to_db(to_email, subject, html_content, email_type, status, error_m
         log.error(f"Gagal menyimpan email log ke database: {e}")
 
 
-def _handle_smtp_exception(e, error_msg, recipient, subject, html_content, email_type, server):
-    """Helper untuk logging error SMTP, stack trace, dan menyimpan kegagalan ke DB."""
+def _handle_email_exception(e, error_msg, recipient, subject, html_content, email_type):
+    """Helper untuk logging error pengiriman email, stack trace, dan menyimpan kegagalan ke DB."""
     tb_str = traceback.format_exc()
     log.error("=" * 60)
-    log.error(f"[SMTP ERROR] {error_msg}")
+    log.error(f"[EMAIL ERROR] {error_msg}")
     log.error("STACK TRACE:")
     log.error(tb_str)
     log.error("=" * 60)
-
-    if server:
-        try:
-            log.info("Mencoba menutup koneksi server secara paksa setelah terjadi error...")
-            server.close()
-        except Exception as e_close:
-            log.warning(f"Gagal menutup koneksi server secara paksa: {e_close}")
 
     log_email_to_db(recipient, subject, html_content, email_type, status="failed", error_message=f"{error_msg}\n\nStacktrace:\n{tb_str}")
     return False, error_msg
 
 
+def parse_sender_info(sender_str):
+    """Mengekstrak name dan email dari format 'Nama <email@domain.com>' atau email langsung."""
+    name, email = parseaddr(sender_str)
+    result = {"email": email}
+    if name:
+        result["name"] = name
+    return result
+
+
 def send_email(to_email, subject, html_content, email_type="general"):
     """
-    Mengirim email via SMTP atau log ke database jika provider console.
+    Mengirim email via Brevo HTTP API atau log ke database jika provider console.
 
     Args:
         to_email: Email penerima
@@ -142,157 +126,92 @@ def send_email(to_email, subject, html_content, email_type="general"):
     provider = config["provider"]
 
     is_console = provider == "console"
-    is_incomplete_smtp = (provider == "smtp" and (not config["smtp_server"] or not config["username"]))
-    is_unsupported_provider = provider != "smtp"
+    is_incomplete_brevo = (provider == "brevo" and not config["api_key"])
+    is_unsupported_provider = provider != "brevo"
     
-    if is_console or is_incomplete_smtp or is_unsupported_provider:
+    if is_console or is_incomplete_brevo or is_unsupported_provider:
         log_email_to_db(original_recipient, subject, html_content, email_type, status="logged")
         log.info(f"[CONSOLE MODE] Email disimulasikan ke {original_recipient} — subject: '{subject}'")
         return True, None
 
-    # Logging detail sebelum setiap langkah SMTP
+    # Logging detail sebelum langkah pengiriman
     log.info("=" * 60)
-    log.info("MEMULAI PROSES PENGIRIMAN EMAIL SMTP")
+    log.info("MEMULAI PROSES PENGIRIMAN EMAIL BREVO HTTP API")
     log.info(f"  Penerima        : {to_email}")
     log.info(f"  Subject         : {subject}")
     log.info(f"  Tipe Email      : {email_type}")
     log.info(f"  Provider        : {provider}")
-    log.info(f"  SMTP Server     : {config['smtp_server']}")
-    log.info(f"  Port            : {config['smtp_port']}")
-    log.info(f"  TLS Aktif       : {config['use_tls']}")
-    log.info(f"  Username SMTP   : {config['username']}")
     log.info(f"  Default Sender  : {config['default_sender']}")
     log.info("=" * 60)
 
-    server = None
+    # Parse sender
+    sender_info = parse_sender_info(config["default_sender"])
+
+    # Payload untuk Brevo Send Transactional Email
+    payload = {
+        "sender": sender_info,
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "htmlContent": html_content
+    }
+
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "api-key": config["api_key"],
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers=headers,
+        method="POST"
+    )
+
     start_time = time.time()
-
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = config["default_sender"]
-        msg["To"] = to_email
-
-        part = MIMEText(html_content, "html")
-        msg.attach(part)
-
-        # ----------------------------------------------------
-        # 1. LANGKAH: CONNECT()
-        # ----------------------------------------------------
-        connect_start = datetime.now()
-        log.info(f"[{connect_start.isoformat()}] SMTP STEP: Memulai koneksi (connect) ke {config['smtp_server']}:{config['smtp_port']}...")
-        
-        step_connect_start = time.time()
-        # Jika port 465, gunakan SMTP_SSL langsung
-        if config["smtp_port"] == 465:
-            server = smtplib.SMTP_SSL(config["smtp_server"], config["smtp_port"], timeout=30)
-        else:
-            server = smtplib.SMTP(config["smtp_server"], config["smtp_port"], timeout=30)
-        step_connect_end = time.time()
-        
-        connect_end = datetime.now()
-        log.info(f"[{connect_end.isoformat()}] SMTP STEP SUCCESS: Koneksi berhasil. Waktu mulai: {connect_start.isoformat()}, Selesai: {connect_end.isoformat()} (Durasi: {step_connect_end - step_connect_start:.2f}s)")
-
-        # EHLO setelah connect
-        log.info(f"[{datetime.now().isoformat()}] Mengirim EHLO awal...")
-        server.ehlo()
-
-        # ----------------------------------------------------
-        # 2. LANGKAH: STARTTLS()
-        # ----------------------------------------------------
-        if config["use_tls"] and config["smtp_port"] != 465:
-            tls_start = datetime.now()
-            log.info(f"[{tls_start.isoformat()}] SMTP STEP: Memulai starttls()...")
+        # Kirim HTTP request via urllib
+        with urllib.request.urlopen(req, timeout=30) as response:
+            status_code = response.getcode()
+            response_body = response.read().decode("utf-8")
             
-            step_tls_start = time.time()
-            server.starttls()
-            server.ehlo()
-            step_tls_end = time.time()
+            duration = time.time() - start_time
+            log.info(f"[SUCCESS] Email BERHASIL dikirim ke {to_email} via Brevo. Status: {status_code}, Durasi: {duration:.2f}s")
+            log.info(f"Response Brevo: {response_body}")
+            log.info("=" * 60)
             
-            tls_end = datetime.now()
-            log.info(f"[{tls_end.isoformat()}] SMTP STEP SUCCESS: STARTTLS berhasil. Waktu mulai: {tls_start.isoformat()}, Selesai: {tls_end.isoformat()} (Durasi: {step_tls_end - step_tls_start:.2f}s)")
-        else:
-            if config["smtp_port"] == 465:
-                log.info("STARTTLS dilewati karena menggunakan koneksi SSL murni (Port 465)")
-            else:
-                log.info("STARTTLS dilewati karena MAIL_USE_TLS = False")
+            log_email_to_db(original_recipient, subject, html_content, email_type, status="sent")
+            return True, None
 
-        # ----------------------------------------------------
-        # 3. LANGKAH: LOGIN()
-        # ----------------------------------------------------
-        login_start = datetime.now()
-        log.info(f"[{login_start.isoformat()}] SMTP STEP: Memulai login() sebagai {config['username']}...")
-        
-        step_login_start = time.time()
-        server.login(config["username"], config["password"])
-        step_login_end = time.time()
-        
-        login_end = datetime.now()
-        log.info(f"[{login_end.isoformat()}] SMTP STEP SUCCESS: Login berhasil. Waktu mulai: {login_start.isoformat()}, Selesai: {login_end.isoformat()} (Durasi: {step_login_end - step_login_start:.2f}s)")
-
-        # ----------------------------------------------------
-        # 4. LANGKAH: SENDMAIL()
-        # ----------------------------------------------------
-        send_start = datetime.now()
-        log.info(f"[{send_start.isoformat()}] SMTP STEP: Memulai sendmail()...")
-        
-        step_send_start = time.time()
-        server.sendmail(config["default_sender"], to_email, msg.as_string())
-        step_send_end = time.time()
-        
-        send_end = datetime.now()
-        log.info(f"[{send_end.isoformat()}] SMTP STEP SUCCESS: Pengiriman email berhasil. Waktu mulai: {send_start.isoformat()}, Selesai: {send_end.isoformat()} (Durasi: {step_send_end - step_send_start:.2f}s)")
-
-        # ----------------------------------------------------
-        # 5. LANGKAH: QUIT()
-        # ----------------------------------------------------
-        quit_start = datetime.now()
-        log.info(f"[{quit_start.isoformat()}] SMTP STEP: Memulai quit()...")
-        
-        step_quit_start = time.time()
+    except urllib.error.HTTPError as e:
+        error_body = ""
         try:
-            server.quit()
-        except Exception as e_quit:
-            log.warning(f"Error minor saat quit: {e_quit}")
-        step_quit_end = time.time()
+            error_body = e.read().decode("utf-8")
+        except Exception:
+            pass
         
-        quit_end = datetime.now()
-        log.info(f"[{quit_end.isoformat()}] SMTP STEP SUCCESS: Koneksi ditutup (quit). Waktu mulai: {quit_start.isoformat()}, Selesai: {quit_end.isoformat()} (Durasi: {step_quit_end - step_quit_start:.2f}s)")
+        error_msg = f"HTTPError {e.code}: {e.reason}"
+        if error_body:
+            error_msg += f" - Response Body: {error_body}"
+            
+        return _handle_email_exception(e, error_msg, original_recipient, subject, html_content, email_type)
 
-        total_duration = time.time() - start_time
-        log.info(f"[SUCCESS] Email BERHASIL dikirim ke {to_email}. Total durasi: {total_duration:.2f}s")
-        log.info("=" * 60)
-
-        log_email_to_db(original_recipient, subject, html_content, email_type, status="sent")
-        return True, None
+    except urllib.error.URLError as e:
+        error_msg = f"URLError (Koneksi jaringan gagal/timeout): {e.reason}"
+        return _handle_email_exception(e, error_msg, original_recipient, subject, html_content, email_type)
 
     except TimeoutError as e:
-        error_msg = f"TimeoutError (Batas waktu koneksi/operasi OS terlampaui): {e}"
-        return _handle_smtp_exception(e, error_msg, original_recipient, subject, html_content, email_type, server)
+        error_msg = f"TimeoutError (Batas waktu operasi terlampaui): {e}"
+        return _handle_email_exception(e, error_msg, original_recipient, subject, html_content, email_type)
 
-    except socket.timeout as e:
-        error_msg = f"socket.timeout (Batas waktu operasi socket terlampaui): {e}"
-        return _handle_smtp_exception(e, error_msg, original_recipient, subject, html_content, email_type, server)
-
-    except smtplib.SMTPServerDisconnected as e:
-        error_msg = f"smtplib.SMTPServerDisconnected (Server terputus tiba-tiba): {e}"
-        return _handle_smtp_exception(e, error_msg, original_recipient, subject, html_content, email_type, server)
-
-    except smtplib.SMTPConnectError as e:
-        error_msg = f"smtplib.SMTPConnectError (Gagal melakukan koneksi awal): {e}"
-        return _handle_smtp_exception(e, error_msg, original_recipient, subject, html_content, email_type, server)
-
-    except smtplib.SMTPAuthenticationError as e:
-        error_msg = f"smtplib.SMTPAuthenticationError (Kredensial SMTP ditolak oleh provider): {e}"
-        return _handle_smtp_exception(e, error_msg, original_recipient, subject, html_content, email_type, server)
-
-    except smtplib.SMTPException as e:
-        error_msg = f"smtplib.SMTPException (Kesalahan protokol SMTP): {e}"
-        return _handle_smtp_exception(e, error_msg, original_recipient, subject, html_content, email_type, server)
+    except json.JSONDecodeError as e:
+        error_msg = f"JSON parsing error: {e}"
+        return _handle_email_exception(e, error_msg, original_recipient, subject, html_content, email_type)
 
     except Exception as e:
         error_msg = f"Exception umum: {type(e).__name__}: {e}"
-        return _handle_smtp_exception(e, error_msg, original_recipient, subject, html_content, email_type, server)
+        return _handle_email_exception(e, error_msg, original_recipient, subject, html_content, email_type)
 
 
 # ============================================
@@ -582,13 +501,10 @@ def send_otp_email(recipient, otp_code, user_name, otp_type="register"):
     return send_email(recipient, subject, html_content, email_type="otp")
 
 
-def send_invoice_email(recipient, user_name, invoice_data):
-    """Kirim email invoice setelah checkout"""
+def generate_invoice_email(user_name, invoice_data):
+    """Membuat konten HTML email invoice. Dipertahankan sebagai bagian dari API publik."""
     from flask import render_template_string
-
-    subject = f'📧 Invoice #{invoice_data["invoice_number"]} - Toko Sembako'
-
-    html_body = render_template_string(
+    return render_template_string(
         INVOICE_EMAIL_TEMPLATE_FLASK,
         user_name=user_name,
         invoice_number=invoice_data["invoice_number"],
@@ -605,13 +521,17 @@ def send_invoice_email(recipient, user_name, invoice_data):
         status=invoice_data.get("status", "Pesanan Diterima"),
     )
 
+
+def send_invoice_email(recipient, user_name, invoice_data):
+    """Kirim email invoice setelah checkout"""
+    subject = f'📧 Invoice #{invoice_data["invoice_number"]} - Toko Sembako'
+    html_body = generate_invoice_email(user_name, invoice_data)
     return send_email(recipient, subject, html_body, email_type="invoice")
 
 
-def send_order_status_email(recipient, user_name, invoice_number, old_status, new_status):
-    """Kirim email notifikasi perubahan status pesanan"""
+def generate_status_email(user_name, invoice_number, old_status, new_status):
+    """Membuat konten HTML email status pesanan. Dipertahankan sebagai bagian dari API publik."""
     from flask import render_template_string
-
     status_messages = {
         "Pesanan Diterima": "✅ Pesanan Anda telah kami terima dan sedang kami proses.",
         "Sedang Diproses": "📦 Pesanan Anda sedang kami siapkan dengan teliti.",
@@ -619,11 +539,8 @@ def send_order_status_email(recipient, user_name, invoice_number, old_status, ne
         "Pesanan Selesai": "🎉 Pesanan Anda telah selesai. Terima kasih telah berbelanja!",
         "Pesanan Dibatalkan": "❌ Pesanan Anda telah dibatalkan.",
     }
-
-    subject = f"📦 Update Status Pesanan #{invoice_number} - Toko Sembako"
     status_message = status_messages.get(new_status, f"Status pesanan Anda telah diubah menjadi: {new_status}")
-
-    html_body = render_template_string(
+    return render_template_string(
         ORDER_STATUS_EMAIL_TEMPLATE_FLASK,
         user_name=user_name,
         invoice_number=invoice_number,
@@ -631,6 +548,11 @@ def send_order_status_email(recipient, user_name, invoice_number, old_status, ne
         status_message=status_message,
     )
 
+
+def send_order_status_email(recipient, user_name, invoice_number, old_status, new_status):
+    """Kirim email notifikasi perubahan status pesanan"""
+    subject = f"📦 Update Status Pesanan #{invoice_number} - Toko Sembako"
+    html_body = generate_status_email(user_name, invoice_number, old_status, new_status)
     return send_email(recipient, subject, html_body, email_type="status")
 
 
