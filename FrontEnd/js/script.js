@@ -980,11 +980,18 @@ function getCartRecommendations() {
     matchedRules.push(rule);
     for (const pid of rule.recommends) {
       if (cartIds.has(pid)) continue;
+      // Filter out products with no stock
+      const prod = products.find(p => p.id === pid);
+      if (!prod || (prod.stok || 0) <= 0) continue;
       scored[pid] = (scored[pid] || 0) + rule.confidence;
     }
   }
   if (Object.keys(scored).length === 0) {
-    const ids = MBA_DEFAULT_IDS.filter((id) => !cartIds.has(id)).slice(0, 6);
+    const ids = MBA_DEFAULT_IDS.filter((id) => {
+      if (cartIds.has(id)) return false;
+      const prod = products.find(p => p.id === id);
+      return prod && (prod.stok || 0) > 0;
+    }).slice(0, 6);
     return { mode: "default", rules: [], productIds: ids };
   }
   const productIds = Object.keys(scored)
@@ -1000,7 +1007,7 @@ function renderCartRecommendations() {
   const { mode, rules, productIds } = getCartRecommendations();
   const recoProducts = productIds
     .map((id) => products.find((p) => p.id === id))
-    .filter(Boolean);
+    .filter((p) => p && (p.stok || 0) > 0);
   if (recoProducts.length === 0) {
     section.innerHTML = "";
     return;
@@ -1287,7 +1294,10 @@ function renderCartPage() {
                 <div class="cart-item-controls">
                     <div class="qty-controls">
                         <button class="qty-btn" onclick="updateQty(${item.id}, -1)">–</button>
-                        <span style="font-weight: 600; min-width: 24px; text-align: center; font-size: 14px;">${item.qty}</span>
+                        <input type="number" class="qty-input" value="${item.qty}" min="1" max="${stokTersedia}"
+                               style="width: 45px; text-align: center; font-weight: 600; font-size: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 0; margin: 0 4px; -moz-appearance: textfield;"
+                               onchange="changeQtyDirect(${item.id}, this.value)"
+                               onkeydown="if(['e', 'E', '+', '-', '.'].includes(event.key)) event.preventDefault();">
                         <button class="qty-btn" onclick="updateQty(${item.id}, 1)" ${isNearLimit ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>+</button>
                     </div>
                     <button onclick="removeItem(${item.id})" class="cart-item-remove-btn">
@@ -1505,6 +1515,62 @@ async function updateQty(id, change) {
     });
 
     item.qty -= change;
+    saveCart();
+    renderCartPage();
+  }
+}
+
+async function changeQtyDirect(id, newQtyVal) {
+  if (!requireLogin("Masuk dulu untuk mengubah keranjang.")) {
+    renderCartPage();
+    return;
+  }
+  const item = cart.find((item) => item.id === id);
+  if (!item) return;
+
+  let parsed = parseInt(newQtyVal);
+  if (isNaN(parsed) || parsed <= 0) {
+    parsed = 1;
+  }
+
+  const product = products.find(p => p.id === id);
+  if (product && parsed > (product.stok || 0)) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Stok Tidak Mencukupi',
+      text: `Maaf, stok untuk ${product.nama} tidak mencukupi (Tersedia: ${product.stok || 0} pcs).`,
+      customClass: {
+        popup: "custom-swal-popup",
+        title: "custom-swal-title",
+        htmlContainer: "custom-swal-html",
+      }
+    });
+    parsed = product.stok || 0;
+    if (parsed <= 0) parsed = 1;
+  }
+
+  if (item.qty === parsed) {
+    renderCartPage();
+    return;
+  }
+
+  const oldQty = item.qty;
+  item.qty = parsed;
+  saveCart();
+  renderCartPage();
+
+  const api = await apiFetch(`/cart/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({ qty: parsed }),
+  });
+  if (!api.ok && api.status !== 0 && api.status !== 401) {
+    showPopup({
+      title: "Gagal Mengubah Keranjang",
+      message:
+        api.data?.error || "Server tidak dapat memperbarui jumlah barang.",
+    });
+
+    item.qty = oldQty;
     saveCart();
     renderCartPage();
   }
