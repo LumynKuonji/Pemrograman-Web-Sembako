@@ -88,7 +88,7 @@ def buat_pesanan_dari_keranjang(user_id, data):
         invoice_number=invoice_number,
         total_harga=total,
         metode_bayar=data.get("metode_bayar") or data.get("paymentMethod") or "COD",
-        status="Pesanan Diterima",
+        status="Menunggu Konfirmasi",
         alamat_lengkap=alamat_lengkap,
         kecamatan=kecamatan,
         kota=kota,

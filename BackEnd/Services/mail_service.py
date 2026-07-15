@@ -601,7 +601,7 @@ def generate_invoice_email(user_name, invoice_data):
         kecamatan=invoice_data.get("kecamatan", "-"),
         kota=invoice_data.get("kota", "-"),
         kode_pos=invoice_data.get("kode_pos", "-"),
-        status=invoice_data.get("status", "Pesanan Diterima"),
+        status=invoice_data.get("status", "Menunggu Konfirmasi"),
     )
 
 
@@ -616,11 +616,15 @@ def generate_status_email(user_name, invoice_number, old_status, new_status):
     """Membuat konten HTML email status pesanan. Dipertahankan sebagai bagian dari API publik."""
     from flask import render_template_string
     status_messages = {
+        "Menunggu Konfirmasi": "⏳ Pesanan Anda sedang menunggu konfirmasi atau verifikasi pembayaran.",
+        "Sedang Dikemas": "📦 Pesanan Anda sedang disiapkan dan dikemas oleh admin.",
+        "Dalam Perjalanan": "🚚 Pesanan Anda sedang dalam perjalanan menuju alamat Anda.",
+        "Sudah Sampai": "📍 Pesanan Anda telah tiba di alamat tujuan.",
+        "Pesanan Selesai": "🎉 Pesanan Anda telah selesai diterima. Terima kasih telah berbelanja!",
+        "Pesanan Dibatalkan": "❌ Pesanan Anda telah dibatalkan.",
         "Pesanan Diterima": "✅ Pesanan Anda telah kami terima dan sedang kami proses.",
         "Sedang Diproses": "📦 Pesanan Anda sedang kami siapkan dengan teliti.",
         "Sedang Dikirim": "🚚 Pesanan Anda sedang dalam perjalanan menuju alamat Anda.",
-        "Pesanan Selesai": "🎉 Pesanan Anda telah selesai. Terima kasih telah berbelanja!",
-        "Pesanan Dibatalkan": "❌ Pesanan Anda telah dibatalkan.",
     }
     status_message = status_messages.get(new_status, f"Status pesanan Anda telah diubah menjadi: {new_status}")
     return render_template_string(

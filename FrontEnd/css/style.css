@@ -1053,22 +1053,36 @@ button {
   font-weight: 600;
 }
 
-.status.sedang-diproses {
+.status.sedang-diproses,
+.status.sedang-dikemas {
   background: #fef3c7;
   color: #d97706;
 }
 
-.status.dikirim {
+.status.menunggu-konfirmasi {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.status.dikirim,
+.status.dalam-perjalanan {
   background: #dbeafe;
   color: #1e40af;
 }
 
-.status.selesai {
+.status.sudah-sampai {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.status.selesai,
+.status.pesanan-selesai {
   background: #d1fae5;
   color: #065f46;
 }
 
-.status.dibatalkan {
+.status.dibatalkan,
+.status.pesanan-dibatalkan {
   background: #fee2e2;
   color: #b91c1c;
 }

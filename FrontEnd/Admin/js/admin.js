@@ -1,4 +1,6 @@
-const API_BASE = "https://pemrograman-web-sembako-production.up.railway.app/api";
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:')
+  ? 'http://localhost:5000/api'
+  : 'https://pemrograman-web-sembako-production.up.railway.app/api';
 const API_ROOT = API_BASE.replace(/\/api$/, "");
 
 function resolveImgUrl(img) {
@@ -78,16 +80,30 @@ document.addEventListener("DOMContentLoaded", () => {
 function showAdminView(view) {
   document.querySelectorAll(".menu-item").forEach((item) => item.classList.remove("active"));
 
+  const productsView = document.getElementById("productsView");
+  const statsView = document.getElementById("statsView");
+  const ordersView = document.getElementById("ordersView");
+
   if (view === "stats") {
     document.getElementById("statsMenuItem")?.classList.add("active");
     productsView?.classList.remove("active");
+    if (ordersView) ordersView.classList.remove("active");
     statsView?.classList.add("active");
     if (pageTitle) pageTitle.textContent = "Statistik Penjualan";
     if (pageSubtitle) pageSubtitle.textContent = "Pantau penjualan mingguan dan keuntungan dari pesanan pelanggan.";
+  } else if (view === "orders") {
+    document.getElementById("ordersMenuItem")?.classList.add("active");
+    productsView?.classList.remove("active");
+    statsView?.classList.remove("active");
+    if (ordersView) ordersView.classList.add("active");
+    if (pageTitle) pageTitle.textContent = "Monitoring Pesanan";
+    if (pageSubtitle) pageSubtitle.textContent = "Verifikasi pembayaran dan perbarui status pengiriman pesanan pelanggan.";
+    fetchAdminOrders();
   } else {
     document.getElementById("productsMenuItem")?.classList.add("active");
     productsView?.classList.add("active");
     statsView?.classList.remove("active");
+    if (ordersView) ordersView.classList.remove("active");
     if (pageTitle) pageTitle.textContent = "Manajemen Produk";
     if (pageSubtitle) pageSubtitle.textContent = "Kelola semua barang sembako yang ditawarkan kepada pelanggan.";
   }
@@ -145,6 +161,17 @@ function setupEventListeners() {
 
   // Form Submit
   productForm.addEventListener("submit", handleFormSubmit);
+
+  // Order Search & Filter
+  const orderSearchInput = document.getElementById("orderSearchInput");
+  const orderStatusFilter = document.getElementById("orderStatusFilter");
+
+  if (orderSearchInput) {
+    orderSearchInput.addEventListener("input", filterAndRenderAdminOrders);
+  }
+  if (orderStatusFilter) {
+    orderStatusFilter.addEventListener("change", filterAndRenderAdminOrders);
+  }
 }
 
 // Fetch Products from Backend
@@ -888,5 +915,244 @@ function cropCurrentProductImage() {
   const imgPreview = document.getElementById("imgPreview");
   if (imgPreview && imgPreview.src && imgPreview.style.display !== "none") {
     openProductCropModal(imgPreview.src);
+  }
+}
+
+// ============================================
+// ADMIN ORDER MONITORING ACTIONS & RENDERERS
+// ============================================
+let adminOrdersList = [];
+
+async function fetchAdminOrders() {
+  const tableBody = document.getElementById("ordersTableBody");
+  if (!tableBody) return;
+
+  try {
+    const session = JSON.parse(localStorage.getItem("sembako_admin_session"));
+    const headers = { "Content-Type": "application/json" };
+    if (session && session.token) {
+      headers.Authorization = `Bearer ${session.token}`;
+    }
+
+    const res = await fetch(`${API_BASE}/admin/orders`, { headers });
+    if (!res.ok) throw new Error("Gagal mengambil data pesanan admin");
+
+    const data = await res.json();
+    adminOrdersList = data.orders || [];
+    
+    filterAndRenderAdminOrders();
+  } catch (error) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 32px;">
+          ${error.message}
+        </td>
+      </tr>
+    `;
+    showToast("error", error.message);
+  }
+}
+
+function filterAndRenderAdminOrders() {
+  const tableBody = document.getElementById("ordersTableBody");
+  if (!tableBody) return;
+
+  const searchInput = document.getElementById("orderSearchInput");
+  const statusFilter = document.getElementById("orderStatusFilter");
+
+  const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : "";
+  const selectedStatus = statusFilter ? statusFilter.value : "Semua";
+
+  const filtered = adminOrdersList.filter(order => {
+    const matchesStatus = selectedStatus === "Semua" || order.status === selectedStatus;
+    
+    const matchesSearch = 
+      order.invoice_number.toLowerCase().includes(searchVal) ||
+      order.id.toLowerCase().includes(searchVal) ||
+      (order.buyer.nama && order.buyer.nama.toLowerCase().includes(searchVal)) ||
+      (order.buyer.email && order.buyer.email.toLowerCase().includes(searchVal));
+
+    return matchesStatus && matchesSearch;
+  });
+
+  renderAdminOrdersTable(filtered);
+}
+
+function renderAdminOrdersTable(orders) {
+  const tableBody = document.getElementById("ordersTableBody");
+  if (!tableBody) return;
+
+  tableBody.innerHTML = "";
+
+  if (orders.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 32px;">
+          Tidak ada pesanan ditemukan.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  orders.forEach(order => {
+    const tr = document.createElement("tr");
+
+    const tgl = order.tanggal
+      ? new Date(order.tanggal).toLocaleDateString("id-ID", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "-";
+
+    const itemsHTML = order.items.map(item => `
+      <div style="font-size: 13px; color: var(--text); padding: 2px 0;">
+        • <strong>${item.nama}</strong> (${item.qty} pcs)
+      </div>
+    `).join("");
+
+    const statusClass = order.status.toLowerCase().replace(/\s/g, "-");
+
+    const statuses = [
+      "Menunggu Konfirmasi",
+      "Sedang Dikemas",
+      "Dalam Perjalanan",
+      "Sudah Sampai",
+      "Pesanan Selesai",
+      "Pesanan Dibatalkan"
+    ];
+
+    const statusOptions = statuses.map(s => `
+      <option value="${s}" ${order.status === s ? 'selected' : ''}>${s}</option>
+    `).join("");
+
+    tr.innerHTML = `
+      <td>
+        <div style="font-weight: 600; color: var(--dark); font-size: 14px;">${order.invoice_number}</div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">${tgl}</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">ID: ${order.id}</div>
+      </td>
+      <td>
+        <div style="font-weight: 500; color: var(--text);">${order.buyer.nama}</div>
+        <div style="font-size: 12px; color: var(--text-muted);">${order.buyer.email}</div>
+        <div style="font-size: 12px; color: var(--text-muted);">${order.buyer.telepon}</div>
+        <div style="font-size: 11px; color: var(--primary-dark); cursor: pointer; text-decoration: underline; margin-top: 4px;" 
+             onclick="showAddressDetailPopup('${order.invoice_number}')">
+          Lihat Alamat
+        </div>
+      </td>
+      <td>
+        <div style="max-height: 80px; overflow-y: auto;">
+          ${itemsHTML}
+        </div>
+      </td>
+      <td>
+        <div style="font-weight: 600; color: var(--dark);">${formatRupiah(order.total)}</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Metode: ${order.paymentMethod}</div>
+      </td>
+      <td>
+        <span class="badge-status ${statusClass}">${order.status}</span>
+      </td>
+      <td>
+        <select class="form-control" style="font-size: 12px; padding: 6px 8px; width: 160px; background-color: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius-sm);"
+                onchange="changeOrderStatusAdmin('${order.invoice_number}', this.value, '${order.status}')">
+          ${statusOptions}
+          ${!statuses.includes(order.status) ? `<option value="${order.status}" selected>${order.status}</option>` : ''}
+        </select>
+      </td>
+    `;
+    tableBody.appendChild(tr);
+  });
+}
+
+function showAddressDetailPopup(invoiceNumber) {
+  const order = adminOrdersList.find(o => o.invoice_number === invoiceNumber);
+  if (!order) return;
+
+  const addr = order.alamat;
+  const alamatLengkap = `
+    <div style="text-align: left; font-size: 14px; line-height: 1.6; color: var(--text);">
+      <p style="margin-bottom: 8px;"><strong>Alamat Lengkap:</strong><br>${addr.alamatLengkap || '-'}</p>
+      <p style="margin-bottom: 8px;"><strong>Kecamatan:</strong> ${addr.kecamatan || '-'}</p>
+      <p style="margin-bottom: 8px;"><strong>Kota/Kabupaten:</strong> ${addr.kota || '-'}</p>
+      <p style="margin-bottom: 8px;"><strong>Kode Pos:</strong> ${addr.kodePos || '-'}</p>
+      <p style="margin-bottom: 8px;"><strong>Catatan/Keterangan:</strong> ${addr.catatan || '-'}</p>
+    </div>
+  `;
+
+  Swal.fire({
+    title: 'Detail Alamat Pengiriman',
+    html: alamatLengkap,
+    confirmButtonText: 'Tutup',
+    confirmButtonColor: '#5a8f8a',
+  });
+}
+
+async function changeOrderStatusAdmin(invoiceNumber, newStatus, oldStatus) {
+  if (newStatus === oldStatus) return;
+
+  const result = await Swal.fire({
+    title: 'Ubah Status Pesanan?',
+    text: `Ubah status pesanan #${invoiceNumber} dari "${oldStatus}" menjadi "${newStatus}"? Notifikasi email otomatis akan dikirim ke pembeli.`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#5a8f8a',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'Ya, Ubah!',
+    cancelButtonText: 'Batal'
+  });
+
+  if (!result.isConfirmed) {
+    // Refresh table to reset selector
+    filterAndRenderAdminOrders();
+    return;
+  }
+
+  Swal.fire({
+    title: 'Memperbarui status...',
+    allowOutsideClick: false,
+    didOpen: () => { Swal.showLoading(); }
+  });
+
+  try {
+    const session = JSON.parse(localStorage.getItem("sembako_admin_session"));
+    const headers = { 
+      "Content-Type": "application/json"
+    };
+    if (session && session.token) {
+      headers.Authorization = `Bearer ${session.token}`;
+    }
+
+    const res = await fetch(`${API_BASE}/admin/orders/${invoiceNumber}/status`, {
+      method: "PUT",
+      headers: headers,
+      body: JSON.stringify({ status: newStatus })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Gagal memperbarui status pesanan");
+
+    Swal.close();
+    Swal.fire({
+      icon: 'success',
+      title: 'Status Diperbarui!',
+      text: data.message,
+      timer: 2000,
+      showConfirmButton: false
+    });
+
+    // Refresh orders list
+    fetchAdminOrders();
+  } catch (error) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Gagal Memperbarui',
+      text: error.message
+    });
+    // Refresh table to reset selector
+    filterAndRenderAdminOrders();
   }
 }

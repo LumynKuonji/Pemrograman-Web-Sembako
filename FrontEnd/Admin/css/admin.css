@@ -924,3 +924,48 @@ textarea.form-control {
   color: #fff;
   transform: translateY(-1px);
 }
+
+/* Badge Status styles */
+.badge-status {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.badge-status.menunggu-konfirmasi {
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+.badge-status.sedang-diproses,
+.badge-status.sedang-dikemas {
+  background-color: #fef3c7;
+  color: #d97706;
+}
+
+.badge-status.dikirim,
+.badge-status.dalam-perjalanan {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.badge-status.sudah-sampai {
+  background-color: #ccfbf1;
+  color: #0f766e;
+}
+
+.badge-status.selesai,
+.badge-status.pesanan-selesai {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.badge-status.dibatalkan,
+.badge-status.pesanan-dibatalkan {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}

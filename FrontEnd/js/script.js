@@ -46,7 +46,9 @@ const GUEST_PROFILE = {
   foto: DEFAULT_AVATAR,
 };
 
-const API_BASE = "https://pemrograman-web-sembako-production.up.railway.app/api";
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:')
+  ? 'http://localhost:5000/api'
+  : 'https://pemrograman-web-sembako-production.up.railway.app/api';
 const API_ROOT = API_BASE.replace(/\/api$/, "");
 
 function resolveImgUrl(img) {
@@ -2392,7 +2394,7 @@ async function confirmPayment() {
     shippingName: shipping.name,
     shippingEta: shipping.eta,
     shippingCost: shipping.cost,
-    status: "Sedang Diproses",
+    status: checkout.data.order?.status || "Menunggu Konfirmasi",
     paymentMethod: selectedPaymentMethod,
   };
 

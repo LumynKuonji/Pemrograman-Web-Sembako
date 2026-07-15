@@ -15,7 +15,7 @@
     (() => {
       const session = JSON.parse(localStorage.getItem("sembako_admin_session"));
       if (!session || !session.isAdmin || !session.token) {
-        window.location.href = "/login.html";
+        window.location.href = "../login.html";
       }
     })();
   </script>
@@ -44,6 +44,12 @@
         <a href="#" onclick="showAdminView('stats'); return false;">
           <svg style="width:20px;height:20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 15l4-4 3 3 5-7"></path></svg>
           <span>Statistik Penjualan</span>
+        </a>
+      </li>
+      <li class="menu-item" id="ordersMenuItem">
+        <a href="#" onclick="showAdminView('orders'); return false;">
+          <svg style="width:20px;height:20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+          <span>Monitoring Pesanan</span>
         </a>
       </li>
       <li class="menu-item">
@@ -207,6 +213,53 @@
             <tbody id="salesStatsTableBody">
               <tr>
                 <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 24px;">Belum ada data.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <section id="ordersView" class="admin-view">
+      <section class="data-card">
+        <div class="card-header" style="flex-direction: column; align-items: stretch; gap: 16px; width: 100%;">
+          <div class="search-filter-box" style="display: flex; gap: 16px; flex-wrap: wrap; width: 100%;">
+            <div class="search-input-wrapper" style="flex-grow: 1; max-width: 400px; position: relative;">
+              <input type="text" id="orderSearchInput" class="search-input" placeholder="Cari Invoice, Kode, Nama, Email..." style="width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; font-size: 14px;">
+            </div>
+            
+            <select id="orderStatusFilter" class="select-filter" style="padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; font-size: 14px; background-color: #fff; cursor: pointer; min-width: 180px;">
+              <option value="Semua">Semua Status</option>
+              <option value="Menunggu Konfirmasi">⏳ Menunggu Konfirmasi</option>
+              <option value="Sedang Dikemas">📦 Sedang Dikemas</option>
+              <option value="Dalam Perjalanan">🚚 Dalam Perjalanan</option>
+              <option value="Sudah Sampai">📍 Sudah Sampai</option>
+              <option value="Pesanan Selesai">🎉 Pesanan Selesai</option>
+              <option value="Pesanan Dibatalkan">❌ Pesanan Dibatalkan</option>
+              <option value="Pesanan Diterima">Pesanan Diterima (Lama)</option>
+              <option value="Sedang Diproses">Sedang Diproses (Lama)</option>
+              <option value="Sedang Dikirim">Sedang Dikirim (Lama)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Invoice & Tanggal</th>
+                <th>Pelanggan</th>
+                <th>Daftar Belanja</th>
+                <th>Total Pembayaran</th>
+                <th>Status Pesanan</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 32px;">
+                  Mengambil data pesanan...
+                </td>
               </tr>
             </tbody>
           </table>

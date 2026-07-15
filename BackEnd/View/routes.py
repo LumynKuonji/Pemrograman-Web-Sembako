@@ -1061,7 +1061,18 @@ def api_update_order_status(invoice_number):
 
     data = request.json or {}
     new_status = data.get("status", "")
-    valid_statuses = ["Pesanan Diterima", "Sedang Diproses", "Sedang Dikirim", "Pesanan Selesai", "Pesanan Dibatalkan"]
+    valid_statuses = [
+        "Menunggu Konfirmasi",
+        "Sedang Dikemas",
+        "Dalam Perjalanan",
+        "Sudah Sampai",
+        "Pesanan Selesai",
+        "Pesanan Dibatalkan",
+        # old compatibility
+        "Pesanan Diterima",
+        "Sedang Diproses",
+        "Sedang Dikirim",
+    ]
     
     if new_status not in valid_statuses:
         return jsonify({"error": f"Status tidak valid. Pilihan: {', '.join(valid_statuses)}"}), 400
@@ -1292,6 +1303,132 @@ def api_email_log_detail(log_id):
     return jsonify({
         "status": "success",
         "log": log.to_dict(include_html=True)
+    })
+
+
+# ============================================
+# ADMIN ORDER MONITORING ENDPOINTS
+# ============================================
+
+@api_bp.route("/admin/orders", methods=["GET", "OPTIONS"])
+def api_admin_orders():
+    """
+    GET /api/admin/orders - Dapatkan semua pesanan untuk admin
+    Query params: status (filter status), search (filter keyword)
+    """
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+        
+    user = _get_user_from_request()
+    if not user or not user.is_admin:
+        return jsonify({"error": "Akses ditolak: Hanya admin"}), 403
+
+    status_filter = request.args.get("status", "Semua")
+    search_filter = request.args.get("search", "").strip()
+
+    query = Pesanan.query
+
+    if status_filter and status_filter != "Semua":
+        query = query.filter_by(status=status_filter)
+
+    if search_filter:
+        query = query.join(User).filter(
+            (Pesanan.invoice_number.ilike(f"%{search_filter}%")) |
+            (Pesanan.kode_pesanan.ilike(f"%{search_filter}%")) |
+            (User.nama.ilike(f"%{search_filter}%")) |
+            (User.email.ilike(f"%{search_filter}%"))
+        )
+
+    orders = query.order_by(Pesanan.created_at.desc()).all()
+
+    data = []
+    for order in orders:
+        items = PesananItem.query.filter_by(pesanan_id=order.id).all()
+        buyer = User.query.get(order.user_id)
+        data.append({
+            "id": order.kode_pesanan,
+            "invoice_number": order.invoice_number,
+            "tanggal": order.created_at.isoformat(),
+            "total": order.total_harga,
+            "status": order.status,
+            "paymentMethod": order.metode_bayar,
+            "alamat": {
+                "alamatLengkap": order.alamat_lengkap,
+                "kecamatan": order.kecamatan,
+                "kota": order.kota,
+                "kodePos": order.kode_pos,
+                "catatan": order.catatan
+            },
+            "buyer": {
+                "nama": buyer.nama if buyer else "Tamu",
+                "email": buyer.email if buyer else "-",
+                "telepon": buyer.telepon if buyer else "-"
+            },
+            "items": [
+                {
+                    "produk_id": item.produk_id,
+                    "nama": item.nama_produk,
+                    "harga": item.harga,
+                    "qty": item.qty,
+                }
+                for item in items
+            ],
+        })
+    return jsonify({"orders": data})
+
+
+@api_bp.route("/admin/orders/<invoice_number>/status", methods=["PUT", "OPTIONS"])
+def api_admin_update_order_status(invoice_number):
+    """
+    PUT /api/admin/orders/<invoice_number>/status - Perbarui status pesanan oleh admin
+    Body: { "status": "..." }
+    """
+    if request.method == "OPTIONS":
+        return _cors_preflight()
+        
+    user = _get_user_from_request()
+    if not user or not user.is_admin:
+        return jsonify({"error": "Akses ditolak: Hanya admin"}), 403
+
+    data = request.json or {}
+    new_status = data.get("status", "").strip()
+    
+    valid_statuses = [
+        "Menunggu Konfirmasi",
+        "Sedang Dikemas",
+        "Dalam Perjalanan",
+        "Sudah Sampai",
+        "Pesanan Selesai",
+        "Pesanan Dibatalkan",
+        # old compatibility
+        "Pesanan Diterima",
+        "Sedang Diproses",
+        "Sedang Dikirim",
+    ]
+    
+    if new_status not in valid_statuses:
+        return jsonify({"error": f"Status tidak valid. Pilihan: {', '.join(valid_statuses)}"}), 400
+
+    order = Pesanan.query.filter_by(invoice_number=invoice_number).first()
+    if not order:
+        return jsonify({"error": "Pesanan tidak ditemukan"}), 404
+
+    old_status = order.status
+    order.status = new_status
+    order.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    # Kirim email notifikasi perubahan status ke pelanggan
+    try:
+        buyer = User.query.get(order.user_id)
+        if buyer and buyer.email:
+            send_order_status_email(buyer.email, buyer.nama, order.invoice_number, old_status, new_status)
+    except Exception as e:
+        log.warning(f"Gagal mengirim email update status: {e}")
+
+    return jsonify({
+        "status": "success",
+        "message": f"Status pesanan {invoice_number} berhasil diubah dari '{old_status}' menjadi '{new_status}'"
     })
 
 

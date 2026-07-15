@@ -168,7 +168,7 @@ class Pesanan(db.Model):
     kode_pesanan = db.Column(db.String(32), nullable=False, unique=True)
     invoice_number = db.Column(db.String(50), nullable=False, unique=True)
     total_harga = db.Column(db.Integer, nullable=False)
-    status = db.Column(db.String(50), nullable=False, default="Pesanan Diterima")
+    status = db.Column(db.String(50), nullable=False, default="Menunggu Konfirmasi")
     metode_bayar = db.Column(db.String(50), default="COD")
     
     # Shipping information

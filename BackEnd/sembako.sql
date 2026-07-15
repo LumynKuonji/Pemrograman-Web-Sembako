@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS pesanan (
   kode_pesanan VARCHAR(32) NOT NULL UNIQUE,
   invoice_number VARCHAR(50) NOT NULL UNIQUE,
   total_harga INT NOT NULL,
-  status VARCHAR(50) NOT NULL DEFAULT 'Sedang Diproses',
+  status VARCHAR(50) NOT NULL DEFAULT 'Menunggu Konfirmasi',
   metode_bayar VARCHAR(50) DEFAULT 'COD',
   alamat_lengkap TEXT DEFAULT NULL,
   kecamatan VARCHAR(80) DEFAULT NULL,
